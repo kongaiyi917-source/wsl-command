@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# 运行数据（含用户配置，绝不提交）
+.config/
+logs/
+*.log
+*.bak
+data/
+
+# Windows 启动器（含本机路径，开源版不包含）
+launcher/
+
+# 系统
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/
