@@ -1107,3 +1107,12 @@
 .app-card .btn { gap: 8px; }
 /* 按钮行钉在卡片底部（内容行数不同也不影响对齐） */
 .app-card .app-actions { margin-top: auto; }
+
+/* ---------- 文件浏览：显示隐藏开关 ---------- */
+.hidden-toggle {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 12px; color: var(--ink-2); cursor: pointer;
+  user-select: none; white-space: nowrap;
+}
+.hidden-toggle input { accent-color: var(--accent); cursor: pointer; }
+.files-side .sec-label .filter-row { margin-left: 8px; }

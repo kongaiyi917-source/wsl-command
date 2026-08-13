@@ -305,7 +305,14 @@
           <section class="view" id="view-files" role="tabpanel" aria-labelledby="tab-files" aria-hidden="true">
             <div class="files-layout">
               <section class="files-side panel">
-                <div class="sec-label"><span>项目树</span><i></i></div>
+                <div class="sec-label"><span>项目树</span><i></i>
+                  <div class="filter-row" style="gap:8px">
+                    <label class="hidden-toggle" title="显示隐藏文件/目录（. 开头）">
+                      <input type="checkbox" id="showHiddenToggle"> 隐藏
+                    </label>
+                    <button class="fchip" id="fileRefreshBtn" type="button" title="刷新当前目录">刷新</button>
+                  </div>
+                </div>
                 <div class="tree-list" id="fileTree" role="tree" aria-label="项目目录树"></div>
               </section>
               <section class="panel files-main">

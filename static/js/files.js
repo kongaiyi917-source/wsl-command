@@ -14,8 +14,52 @@ let currentPath = null;
 const treeOpen = new Set();   // 已展开的目录路径
 const loadedDirs = new Set(); // 已加载过子项（懒加载缓存）
 const dirCache = new Map();   // path -> 目录数据
+let showHidden = localStorage.getItem('dsh-show-hidden') !== '0';  // 默认显示隐藏
 
 const homeOf = () => (state.data && state.data.home) || '~';
+
+/* 请求参数：显示隐藏 */
+const treeQuery = (path) => '/api/tree?path=' + encodeURIComponent(path) +
+  (showHidden ? '&show_hidden=1' : '');
+
+/* ---------------- 工具栏（显示隐藏开关 + 刷新） ---------------- */
+export function filesInit() {
+  if (filesInit._done) return;
+  filesInit._done = true;
+  window.__openProjectPath = openProjectPath;
+  /* 抽屉复制按钮 */
+  $('#drawerCopy').addEventListener('click', () => {
+    if (currentPath) window.__copyText(currentPath);
+  });
+  $('#drawerCopyWin').addEventListener('click', () => {
+    if (currentPath) {
+      const winPath = window.__wslWinPath(currentPath);
+      window.__copyText(winPath);
+    }
+  });
+  /* 显示隐藏开关（放在项目树面板标题栏） */
+  const toggle = $('#showHiddenToggle');
+  if (toggle) {
+    toggle.checked = showHidden;
+    toggle.addEventListener('change', () => {
+      showHidden = toggle.checked;
+      localStorage.setItem('dsh-show-hidden', showHidden ? '1' : '0');
+      /* 清缓存重新加载 */
+      loadedDirs.clear();
+      dirCache.clear();
+      currentPath = null;
+      renderFiles(state.data);
+    });
+  }
+  const refreshBtn = $('#fileRefreshBtn');
+  if (refreshBtn) {
+    refreshBtn.addEventListener('click', () => {
+      loadedDirs.clear();
+      dirCache.clear();
+      renderFiles(state.data);
+    });
+  }
+}
 
 /* ---------------- 项目树 ---------------- */
 function renderTree() {
@@ -73,7 +117,7 @@ function treeRow(path, glyph, label, isProject) {
       treeOpen.add(path);
       if (!loadedDirs.has(path)) {
         try {
-          const r = await fetch('/api/tree?path=' + encodeURIComponent(path));
+          const r = await fetch(treeQuery(path));
           const d = await r.json();
           if (d.dirs) {
             dirCache.set(path, d);
@@ -126,7 +170,7 @@ async function loadDir(path, initial) {
   let d = dirCache.get(path);
   if (!d) {
     try {
-      const r = await fetch('/api/tree?path=' + encodeURIComponent(path));
+      const r = await fetch(treeQuery(path));
       d = await r.json();
       dirCache.set(path, d);
       loadedDirs.add(path);
@@ -241,20 +285,4 @@ export function openProjectPath(path) {
   } else {
     loadDir(homeOf());
   }
-}
-
-export function filesInit() {
-  if (filesInit._done) return;
-  filesInit._done = true;
-  window.__openProjectPath = openProjectPath;
-  /* 抽屉复制按钮 */
-  $('#drawerCopy').addEventListener('click', () => {
-    if (currentPath) window.__copyText(currentPath);
-  });
-  $('#drawerCopyWin').addEventListener('click', () => {
-    if (currentPath) {
-      const winPath = window.__wslWinPath(currentPath);
-      window.__copyText(winPath);
-    }
-  });
 }

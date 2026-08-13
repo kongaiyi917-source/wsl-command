@@ -774,7 +774,8 @@ def _entry_info(root: Path, name: str):
     }
 
 
-def list_dir(path_str: str):
+def list_dir(path_str: str, show_hidden=False):
+    """列目录；show_hidden=True 时显示点开头隐藏项（忽略规则仅作用于非隐藏项）。"""
     p = Path(path_str).resolve()
     if not p.is_dir():
         return None
@@ -785,7 +786,10 @@ def list_dir(path_str: str):
                 try:
                     if e.is_symlink():
                         continue
-                    if _is_hidden(e.name) or is_ignored_name(e.name):
+                    if _is_hidden(e.name):
+                        if not show_hidden:
+                            continue
+                    elif is_ignored_name(e.name):
                         continue
                     info = _entry_info(p, e.name)
                     if info:
@@ -1268,7 +1272,8 @@ class Handler(BaseHTTPRequestHandler):
             if not p:
                 self._json({"error": "invalid path"}, 400)
                 return
-            res = list_dir(str(p))
+            show_hidden = qs.get("show_hidden", ["0"])[0] in ("1", "true")
+            res = list_dir(str(p), show_hidden)
             if res is None:
                 self._json({"error": "unreadable"}, 404)
             else:
