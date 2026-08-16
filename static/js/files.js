@@ -4,6 +4,7 @@
    ============================================================ */
 import { $, el, setText, setChildren, state, icon, escapeHtml,
   openLayer, closeLayer, toast, act, truncateMiddle } from './core.js';
+import { getLang } from './i18n.js';
 import { fmtSize } from './overview.js';
 import { openDrawer, setDrawerHtml } from './widgets.js';
 
@@ -67,7 +68,8 @@ function renderTree() {
   const home = homeOf();
   const projects = (state.data && state.data.projects) || [];
 
-  const homeRow = treeRow(home, '🏠', '~ (家目录)', true);
+  const isEn = getLang() === 'en';
+  const homeRow = treeRow(home, '🏠', isEn ? '~ (Home Directory)' : '~ (家目录)', true);
   fileTree.appendChild(homeRow);
 
   for (const p of projects) {

@@ -7,6 +7,7 @@ import { $, setText, setChildren, setKpi, setKpiUnit, icon, state,
   openLayer, closeLayer, activeLayer, trapLayerFocus, act, post, toast,
   applyTheme, initThemeToggle, applyUiTheme, currentUiTheme, escapeHtml,
   fmtClock, DISCONNECTED_TEXT, reconcilePendingUiTheme, fmtUptime } from './js/core.js';
+import { t, getLang, setLang, initI18n } from './js/i18n.js';
 import { openConfirm } from './js/overlays.js';
 import { initWidgets, renderWidgets, resetFeedBaseline,
   openLogsCenter, openSettingsCenter, syncSettings } from './js/widgets.js';
@@ -37,17 +38,15 @@ const views = {
 const sideOverview = $('#sideOverview'), sideProc = $('#sideProc');
 const railBtns = [...document.querySelectorAll('.rail-btn[data-view]')];
 
-/* 视图元数据 */
-const VIEW_META = {
-  overview: { title: '概览', overline: 'Overview',
-    sub: 'WSL2 本地项目、文件与进程总览' },
-  projects: { title: '项目', overline: 'Projects',
-    sub: '家目录下的文件夹与项目统计' },
-  processes: { title: '进程', overline: 'Processes',
-    sub: '实时进程监控，按项目归类' },
-  files: { title: '文件浏览', overline: 'Files',
-    sub: '浏览目录树、预览文件、复制路径' },
-};
+function getViewMeta(v) {
+  const metaMap = {
+    overview: { title: t('tabOverview'), overline: 'Overview', sub: t('vhOverviewSub') },
+    projects: { title: t('tabProjects'), overline: 'Projects', sub: t('vhProjectsSub') },
+    processes: { title: t('tabProcesses'), overline: 'Processes', sub: t('vhProcessesSub') },
+    files: { title: t('tabFiles'), overline: 'Files', sub: t('vhFilesSub') },
+  };
+  return metaMap[v] || metaMap.overview;
+}
 
 function switchView(v) {
   if (state.view === v) return;
@@ -80,7 +79,7 @@ function applyView() {
     el.classList.toggle('active', key === v);
     el.setAttribute('aria-hidden', String(key !== v));
   }
-  const meta = VIEW_META[v];
+  const meta = getViewMeta(v);
   setText(viewTitle, meta.title);
   setText(viewOverline, meta.overline);
   setText(viewSub, meta.sub);
@@ -90,6 +89,14 @@ function applyView() {
   else if (v === 'files') renderFiles(state.data);
   else if (v === 'overview') renderOverview(state.data);
 }
+
+// 全局视图刷新接口（供语言切换等使用）
+window.__refreshAllViews = () => {
+  applyView();
+  if (state.data) {
+    renderWidgets(state.data);
+  }
+};
 
 navBtns.forEach(b => b.addEventListener('click', () => switchView(b.dataset.view)));
 railBtns.forEach(b => b.addEventListener('click', () => switchView(b.dataset.view)));
@@ -127,10 +134,12 @@ function render() {
   setText(navCounts.projects, projs.length ? String(projs.length) : '');
   setText(navCounts.processes, procs.length ? String(procs.length) : '');
   setText(navCounts.files, '');
-  setText(sideStats, '项目 ' + projs.length + ' · 进程 ' + procs.length +
-    (data.scan && data.scan.state === 'scanning' ? ' · 扫描中' : ''));
+  const isEn = getLang() === 'en';
+  setText(sideStats, isEn
+    ? `${projs.length} projects · ${procs.length} procs` + (data.scan && data.scan.state === 'scanning' ? ' · scanning' : '')
+    : '项目 ' + projs.length + ' · 进程 ' + procs.length + (data.scan && data.scan.state === 'scanning' ? ' · 扫描中' : ''));
   setText(railHost, (data.home || '~').replace(/^\/home\/[^/]+/, '~'));
-  setText(stopConsoleLabel, state.stopping ? '停止中' : '停止');
+  setText(stopConsoleLabel, state.stopping ? (isEn ? 'Stopping…' : '停止中') : (isEn ? 'Stop' : '停止'));
   stopConsoleBtn.disabled = state.stopping;
 
   applyUiTheme(currentUiTheme());
@@ -247,37 +256,37 @@ let paletteSel = -1;
 
 function paletteActions() {
   const items = [
-    { icon: 'layout-grid', title: '打开概览', hint: '视图',
+    { icon: 'layout-grid', title: t('cmdOpenOverview'), hint: t('cmdHintView'),
       run: () => switchView('overview') },
-    { icon: 'folder', title: '打开项目', hint: '视图',
+    { icon: 'folder', title: t('cmdOpenProjects'), hint: t('cmdHintView'),
       run: () => switchView('projects') },
-    { icon: 'activity', title: '打开进程', hint: '视图',
+    { icon: 'activity', title: t('cmdOpenProcesses'), hint: t('cmdHintView'),
       run: () => switchView('processes') },
-    { icon: 'folder-git-2', title: '打开文件浏览', hint: '视图',
+    { icon: 'folder-git-2', title: t('cmdOpenFiles'), hint: t('cmdHintView'),
       run: () => switchView('files') },
-    { icon: 'sun', title: '切换浅色 / 深色', hint: '外观',
+    { icon: 'sun', title: t('cmdToggleTheme'), hint: t('cmdHintAppearance'),
       run: () => { localStorage.setItem('console-theme',
         document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark'); applyTheme(); } },
-    { icon: 'copy', title: '复制家目录路径', hint: '工具',
+    { icon: 'copy', title: t('qaCopyHome'), hint: t('cmdHintTools'),
       run: async () => {
         const home = (state.data && state.data.home) || '~';
         await copyText(home);
       } },
-    { icon: 'refresh-cw', title: '立即扫描 + 刷新状态', hint: '工具',
+    { icon: 'refresh-cw', title: t('qaRefresh'), hint: t('cmdHintTools'),
       run: () => { fetch('/api/scan', { method: 'POST' }).catch(() => {}); poll(true); } },
-    { icon: 'file-text', title: '打开日志中心', hint: '弹层',
+    { icon: 'file-text', title: t('qaLogs'), hint: t('cmdHintModal'),
       run: openLogsCenter },
-    { icon: 'settings', title: '打开设置中心', hint: '弹层',
+    { icon: 'settings', title: t('cmdOpenSettings'), hint: t('cmdHintModal'),
       run: openSettingsCenter },
   ];
   /* 项目动态项 */
   for (const p of (state.data && state.data.projects) || []) {
     items.push({
-      icon: 'folder', title: '浏览: ' + p.name, hint: p.path,
+      icon: 'folder', title: (getLang() === 'en' ? 'Browse: ' : '浏览: ') + p.name, hint: p.path,
       run: () => { switchView('files'); openProjectPath(p.path); },
     });
     items.push({
-      icon: 'pencil', title: '标注: ' + p.name, hint: '编辑名称与备注',
+      icon: 'pencil', title: (getLang() === 'en' ? 'Label: ' : '标注: ') + p.name, hint: getLang() === 'en' ? 'Edit name and notes' : '编辑名称与备注',
       run: () => { switchView('projects'); projectFilterState.pendingLabel = p.path; renderProjects(state.data); },
     });
   }
@@ -419,13 +428,14 @@ function init() {
   setChildren($('#refreshIcon'), icon('refresh-cw', 13));
   setChildren($('#stopConsoleIcon'), icon('power', 13));
 
+  initI18n();
   initThemeToggle();
   initWidgets();
   filesInit();
   applyTheme();
 
   const stored = localStorage.getItem('console-view');
-  state.view = VIEW_META[stored] ? stored : 'overview';
+  state.view = ['overview', 'projects', 'processes', 'files'].includes(stored) ? stored : 'overview';
   applyView();
   applyUiTheme(currentUiTheme());
   poll(true);

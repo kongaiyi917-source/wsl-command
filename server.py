@@ -99,6 +99,7 @@ def tail_log(n=80):
 DEFAULT_CONFIG = {
     "schemaVersion": 1,
     "labels": {},      # {abs_path: {"name": str, "note": str}}
+    "pins": [],        # [abs_path, ...] 用户置顶的项目路径列表
     "ignores": [],     # 用户额外忽略规则（子串匹配路径组件）
     "theme": "auto",   # auto | light | dark
 }
@@ -119,7 +120,7 @@ def load_config():
     try:
         raw = json.loads(CONFIG_PATH.read_text(encoding="utf-8"))
         cfg = dict(DEFAULT_CONFIG)
-        for k in ("labels", "ignores", "theme"):
+        for k in ("labels", "pins", "ignores", "theme"):
             if k in raw and isinstance(raw[k], type(cfg[k])):
                 cfg[k] = raw[k]
         _config = cfg
@@ -852,14 +853,26 @@ def _pid_alive(pid):
 
 
 def detect_start_cmd(path: str) -> str:
-    """从项目标志文件自动推断启动命令（无则返回空串）。"""
+    """从项目标志文件自动推断启动命令（无则返回空串）。
+    优先级：包脚本 → 一键脚本 → 框架入口 → 常见 Python/Node 入口。"""
     p = Path(path)
     try:
+        # 包管理器脚本（npm/yarn 项目的标准启动方式）
         if (p / "package.json").exists():
-            pkg = json.loads((p / "package.json").read_text(encoding="utf-8", errors="replace"))
-            if isinstance(pkg, dict) and isinstance(pkg.get("scripts"), dict) \
-                    and pkg["scripts"].get("start"):
-                return "npm start"
+            try:
+                pkg = json.loads((p / "package.json").read_text(encoding="utf-8", errors="replace"))
+            except (ValueError, OSError):
+                pkg = None
+            if isinstance(pkg, dict) and isinstance(pkg.get("scripts"), dict):
+                if pkg["scripts"].get("start"):
+                    return "npm start"
+                if pkg["scripts"].get("dev"):
+                    return "npm run dev"
+        # 一键启动脚本（项目自带 start.sh/run.sh 时最贴合实际用法）
+        for s in ("start.sh", "run.sh"):
+            if (p / s).exists():
+                return "bash " + s
+        # 框架入口
         if (p / "manage.py").exists():
             return "python3 manage.py runserver"
         if (p / "Cargo.toml").exists():
@@ -868,6 +881,16 @@ def detect_start_cmd(path: str) -> str:
             return "go run ."
         if (p / "Makefile").exists():
             return "make run"
+        if (p / "docker-compose.yml").exists() or (p / "docker-compose.yaml").exists():
+            return "docker compose up -d"
+        # 常见 Python 入口
+        for f in ("main.py", "app.py", "run.py", "bot.py", "index.py"):
+            if (p / f).exists():
+                return "python3 " + f
+        # 常见 Node 入口
+        for f in ("server.js", "app.js"):
+            if (p / f).exists():
+                return "node " + f
     except OSError:
         pass
     return ""
@@ -1093,6 +1116,7 @@ def build_projects():
             "name": lbl.get("name") or pj["name"],
             "dir_name": pj["name"],
             "note": lbl.get("note", ""),
+            "pinned": pj["path"] in _config.get("pins", []),
             "labeled": bool(lbl),
             "type_hint": pj["type_hint"],
             "file_count": pj["file_count"],
@@ -1412,6 +1436,8 @@ class Handler(BaseHTTPRequestHandler):
                         }
                     else:
                         _config["labels"].pop(k, None)
+            if "pins" in data and isinstance(data["pins"], list):
+                _config["pins"] = [str(x) for x in data["pins"] if str(x).startswith(str(HOME))]
             if "ignores" in data and isinstance(data["ignores"], list):
                 _config["ignores"] = [str(x).strip()[:120] for x in data["ignores"] if str(x).strip()]
             if "theme" in data and data["theme"] in ("auto", "light", "dark"):

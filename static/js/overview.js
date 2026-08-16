@@ -4,6 +4,7 @@
    ============================================================ */
 import { $, el, setKpi, setKpiUnit, setText, setChildren, state,
   icon, fmtUptime, escapeHtml, fmtClock } from './core.js';
+import { t, getLang } from './i18n.js';
 import { startProject, stopProject, stopProjectAll, dockerStart, dockerStop, isProjectBusy } from './control.js';
 
 let cpuHistory = [];
@@ -35,15 +36,15 @@ export function renderOverview(data) {
   /* KPI */
   setKpi($('#ovProjects'), String(kpi.projects ?? 0));
   setText($('#ovProjectsSub'),
-    scan.state === 'scanning' ? '扫描中…' :
-      scan.state === 'done' ? '家目录 ' + (data.home || '~') : '等待扫描');
+    scan.state === 'scanning' ? (getLang() === 'en' ? 'Scanning…' : '扫描中…') :
+      scan.state === 'done' ? (getLang() === 'en' ? 'Home: ' : '家目录 ') + (data.home || '~') : (getLang() === 'en' ? 'Waiting scan' : '等待扫描'));
   setKpi($('#ovFiles'), kpi.files == null ? '—' : kpi.files.toLocaleString());
   setText($('#ovFilesSub'),
-    scan.state === 'scanning' ? '统计中…' : '已忽略依赖/缓存目录');
+    scan.state === 'scanning' ? (getLang() === 'en' ? 'Calculating…' : '统计中…') : (getLang() === 'en' ? 'Ignored cache & deps' : '已忽略依赖/缓存目录'));
   setKpiUnit($('#ovSize'), fmtSize(kpi.size), '');
   setKpi($('#ovProcesses'), String(processes.length));
   setText($('#ovProcessesSub'),
-    (kpi.running_projects ?? 0) + ' 个项目有活跃进程');
+    getLang() === 'en' ? `${kpi.running_projects ?? 0} projects active` : `${kpi.running_projects ?? 0} 个项目有活跃进程`);
   setKpiUnit($('#ovCpu'), (sys.cpu ?? 0).toFixed(1), '%');
   setKpiUnit($('#ovMem'), (sys.mem ?? 0).toFixed(1), '%');
 
@@ -68,13 +69,13 @@ export function renderOverview(data) {
   runningList.replaceChildren();
   const ctrlCount = projects.filter(p => p.controlled && p.controlled.running).length;
   setText($('#runningSecCount'),
-    ctrlCount ? String(ctrlCount) + ' 受控运行' : '');
+    ctrlCount ? (getLang() === 'en' ? `${ctrlCount} managed` : `${ctrlCount} 受控运行`) : '');
   /* 只显示运行中的项目 */
   const active = projects.filter(p =>
     (p.running || 0) > 0 || (p.controlled && p.controlled.running));
   if (!active.length) {
     const empty = el('div', 'empty-line');
-    empty.textContent = '当前没有项目在运行——去「项目」页点击 ▶ 启动';
+    empty.textContent = getLang() === 'en' ? 'No projects currently running — go to Projects to start' : '当前没有项目在运行——去「项目」页点击 ▶ 启动';
     runningList.appendChild(empty);
   } else {
     const rank = p => (p.controlled && p.controlled.running ? 2 : ((p.running || 0) > 0 ? 1 : 0));
@@ -88,36 +89,36 @@ export function renderOverview(data) {
       const dot = el('span', 'status-dot' + (ctrlRunning || n > 0 ? ' running' : ''));
       const nm = el('span', 'dyn-name');
       nm.textContent = p.name;
-      nm.title = p.path + (p.cmd ? ' · 启动: ' + p.cmd : '');
+      nm.title = p.path + (p.cmd ? (getLang() === 'en' ? ' · Start: ' : ' · 启动: ') + p.cmd : '');
       /* docker 徽标：该项目有容器进程 */
       const badge = isDocker ? dockerBadge() : null;
       const cnt = el('span', 'dyn-count mono');
-      cnt.textContent = n ? n + ' 进程' : (ctrlRunning ? 'PID ' + ctrl.pid : '—');
+      cnt.textContent = n ? (getLang() === 'en' ? `${n} procs` : `${n} 进程`) : (ctrlRunning ? 'PID ' + ctrl.pid : '—');
       /* 控制按钮：受控运行 → 停止；有进程非受控 → 停止全部；否则 → 启动 */
       let ctrlBtn = null;
       if (isProjectBusy(p.path)) {
         ctrlBtn = el('button', 'btn btn-mini btn-accent');
-        ctrlBtn.textContent = '⋯ 处理中';
+        ctrlBtn.textContent = t('processing');
         ctrlBtn.disabled = true;
       } else if (ctrlRunning) {
         ctrlBtn = el('button', 'btn btn-mini btn-stop');
-        setChildren(ctrlBtn, icon('square', 12), document.createTextNode('停止'));
-        ctrlBtn.title = '停止由指挥中心启动的进程';
+        setChildren(ctrlBtn, icon('square', 12), document.createTextNode(t('stop')));
+        ctrlBtn.title = getLang() === 'en' ? 'Stop managed process' : '停止由指挥中心启动的进程';
         ctrlBtn.addEventListener('click', () => stopProject(p.path, p.name));
       } else if (n > 0) {
         ctrlBtn = el('button', 'btn btn-mini btn-stop');
-        setChildren(ctrlBtn, icon('square', 12), document.createTextNode('停止全部'));
-        ctrlBtn.title = '停止该项目全部进程（含你手动启动的）';
+        setChildren(ctrlBtn, icon('square', 12), document.createTextNode(t('stopAll')));
+        ctrlBtn.title = getLang() === 'en' ? 'Stop all processes for this project' : '停止该项目全部进程（含你手动启动的）';
         ctrlBtn.addEventListener('click', () => stopProjectAll(p.path, p.name, n));
       } else {
         ctrlBtn = el('button', 'btn btn-mini btn-accent');
-        setChildren(ctrlBtn, icon('play', 12), document.createTextNode('启动'));
-        ctrlBtn.title = p.cmd ? '启动: ' + p.cmd : '启动项目（未配置命令将引导配置）';
+        setChildren(ctrlBtn, icon('play', 12), document.createTextNode(t('start')));
+        ctrlBtn.title = p.cmd ? (getLang() === 'en' ? 'Start: ' : '启动: ') + p.cmd : (getLang() === 'en' ? 'Start project' : '启动项目（未配置命令将引导配置）');
         ctrlBtn.addEventListener('click', () => startProject(p.path, p.name));
       }
       const go = el('button', 'btn btn-mini');
       go.type = 'button';
-      go.textContent = '浏览';
+      go.textContent = t('browse');
       go.addEventListener('click', () => {
         const files = document.querySelector('.nav-btn[data-view="files"]');
         if (files) files.click();
@@ -143,10 +144,10 @@ export function renderOverview(data) {
   const dockerList = $('#dockerList');
   dockerList.replaceChildren();
   const containers = (data.docker || []).filter(c => c.running);
-  setText($('#dockerSecCount'), containers.length ? String(containers.length) + ' 个' : '');
+  setText($('#dockerSecCount'), containers.length ? (getLang() === 'en' ? `${containers.length} total` : String(containers.length) + ' 个') : '');
   if (!containers.length) {
     const empty = el('div', 'empty-line');
-    empty.textContent = '没有运行中的容器（已停止的可在「项目」页启动）';
+    empty.textContent = getLang() === 'en' ? 'No running containers (stopped ones can be started in Projects)' : '没有运行中的容器（已停止的可在「项目」页启动）';
     dockerList.appendChild(empty);
   } else {
     containers.forEach(c => {
@@ -157,7 +158,7 @@ export function renderOverview(data) {
       nm.title = c.image;
       const badge = el('span', 'docker-chip');
       badge.textContent = '🐳 docker';
-      badge.title = 'Docker 容器';
+      badge.title = 'Docker container';
       const info = el('span', 'dyn-info mono');
       const projName = (dirName) => {
         const p = projects.find(x => x.dir_name === dirName);
@@ -169,7 +170,7 @@ export function renderOverview(data) {
       cnt.textContent = c.status.replace(/\s+\(.*/, '');
       cnt.title = c.image;
       const actBtn = el('button', 'btn btn-mini btn-stop');
-      setChildren(actBtn, icon('square', 12), document.createTextNode('停止'));
+      setChildren(actBtn, icon('square', 12), document.createTextNode(t('stop')));
       actBtn.addEventListener('click', () => dockerStop(c.name));
       row.append(dot, nm, badge, info, cnt, actBtn);
       dockerList.appendChild(row);
@@ -186,7 +187,7 @@ export function renderOverview(data) {
   setText($('#recentSecCount'), recent.length ? String(recent.length) : '');
   if (!recent.length) {
     const empty = el('div', 'empty-line');
-    empty.textContent = '暂无 git 提交记录';
+    empty.textContent = getLang() === 'en' ? 'No Git commits recorded' : '暂无 git 提交记录';
     recentList.appendChild(empty);
   } else {
     recent.forEach(p => {
@@ -200,7 +201,7 @@ export function renderOverview(data) {
       info.textContent = (p.git.date || '') + ' · ' + (p.git.hash || '');
       const go = el('button', 'btn btn-mini');
       go.type = 'button';
-      go.textContent = '浏览';
+      go.textContent = t('browse');
       go.addEventListener('click', () => {
         const files = document.querySelector('.nav-btn[data-view="files"]');
         if (files) files.click();

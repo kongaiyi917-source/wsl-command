@@ -4,6 +4,7 @@
    ============================================================ */
 import { $, el, setKpi, setKpiUnit, setText, setChildren, state,
   icon, escapeHtml, fmtClock, fmtUptime } from './core.js';
+import { t, getLang } from './i18n.js';
 
 export const processScope = { scope: 'project', kw: '', sortKey: 'cpu', sortDir: -1 };
 
@@ -109,10 +110,10 @@ export function renderProcesses(data) {
   setKpi($('#statAll'), String(all.length));
   setKpiUnit($('#statCpu'), (sys.cpu ?? 0).toFixed(1), '%');
   setKpiUnit($('#statMem'), (sys.mem ?? 0).toFixed(1), '%');
-  setText($('#statMineSub'), mine.length ? mine.length + ' 个归属项目' : '进程归属家目录项目或容器');
+  setText($('#statMineSub'), mine.length ? (getLang() === 'en' ? `${mine.length} matched` : `${mine.length} 个归属项目`) : (getLang() === 'en' ? 'Processes in home or docker' : '进程归属家目录项目或容器'));
   const load = sys.loadavg || [];
-  setText($('#statCpuSub'), load.length ? '负载 ' + load[0].toFixed(2) : '负载');
-  setText($('#statMemSub'), '占用 ' + (sys.mem ?? 0).toFixed(1) + '%');
+  setText($('#statCpuSub'), load.length ? (getLang() === 'en' ? 'Load ' + load[0].toFixed(2) : '负载 ' + load[0].toFixed(2)) : (getLang() === 'en' ? 'Load' : '负载'));
+  setText($('#statMemSub'), (getLang() === 'en' ? 'Usage ' : '占用 ') + (sys.mem ?? 0).toFixed(1) + '%');
   const nowText = fmtClock(new Date());
   if (nowText !== lastTimeText) {
     setText($('#statTime'), nowText);
@@ -130,7 +131,7 @@ export function renderProcesses(data) {
   }
   rows = sortRows(rows);
 
-  setText($('#procSecCount'), rows.length ? String(rows.length) + ' 个进程' : '');
+  setText($('#procSecCount'), rows.length ? (getLang() === 'en' ? `${rows.length} procs` : String(rows.length) + ' 个进程') : '');
   const keys = new Set(rows.map(p => p.pid));
   const existing = new Map();
   for (const child of procList.children) {

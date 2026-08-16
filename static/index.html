@@ -15,7 +15,7 @@
 <body>
 
 <!-- 断连横幅 -->
-<div class="banner" id="banner" role="status" aria-live="polite" aria-atomic="true" aria-hidden="true">与指挥中心失去连接，正在自动重连…</div>
+<div class="banner" id="banner" role="status" aria-live="polite" aria-atomic="true" aria-hidden="true" data-i18n="bannerDisconnected">与指挥中心失去连接，正在自动重连…</div>
 
 <div class="shell">
 
@@ -24,35 +24,35 @@
     <nav class="rail-nav">
       <button class="rail-btn active" type="button" data-view="overview" aria-label="概览" aria-current="page">
         <span class="rail-ic" id="railIconOverview" aria-hidden="true"></span>
-        <span class="rail-label">概览</span>
+        <span class="rail-label" data-i18n="tabOverview">概览</span>
       </button>
       <button class="rail-btn" type="button" data-view="projects" aria-label="项目">
         <span class="rail-ic" id="railIconProjects" aria-hidden="true"></span>
-        <span class="rail-label">项目</span>
+        <span class="rail-label" data-i18n="tabProjects">项目</span>
       </button>
       <button class="rail-btn" type="button" data-view="processes" aria-label="进程">
         <span class="rail-ic" id="railIconProcesses" aria-hidden="true"></span>
-        <span class="rail-label">进程</span>
+        <span class="rail-label" data-i18n="tabProcesses">进程</span>
       </button>
       <button class="rail-btn" type="button" data-view="files" aria-label="文件浏览">
         <span class="rail-ic" id="railIconFiles" aria-hidden="true"></span>
-        <span class="rail-label">文件浏览</span>
+        <span class="rail-label" data-i18n="tabFiles">文件浏览</span>
       </button>
     </nav>
     <nav class="rail-nav rail-actions">
       <button class="rail-btn" type="button" data-action="logs" aria-label="日志中心">
         <span class="rail-ic" id="railIconLogs" aria-hidden="true"></span>
-        <span class="rail-label">日志中心</span>
+        <span class="rail-label" data-i18n="sideNavLogs">日志中心</span>
       </button>
       <button class="rail-btn" type="button" data-action="settings" aria-label="设置中心">
         <span class="rail-ic" id="railIconSettings" aria-hidden="true"></span>
-        <span class="rail-label">设置中心</span>
+        <span class="rail-label" data-i18n="sideNavSettings">设置中心</span>
       </button>
     </nav>
     <div class="rail-foot">
       <div class="rail-conn">
         <span class="status-dot running" id="railConnDot" aria-hidden="true"></span>
-        <span id="railConnText">已连接</span>
+        <span id="railConnText" data-i18n="railConnected">已连接</span>
       </div>
       <div class="rail-host mono" id="railHost">~</div>
       <div class="rail-ver mono" id="railVer">v—</div>
@@ -68,29 +68,29 @@
           <span class="brand-icon" aria-hidden="true"><img src="/assets/brand-mark.png" alt=""></span>
           <div class="brand-text">
             <h1>wsl-command</h1>
-            <p>WSL2 本地监控 · 一键启停</p>
+            <p data-i18n="brandSubtitle">WSL2 本地监控 · 一键启停</p>
           </div>
         </div>
 
         <nav class="side-nav" id="sideNav" role="tablist" aria-label="主视图">
           <button class="nav-btn active" type="button" role="tab" aria-selected="true" aria-controls="view-overview" data-view="overview">
             <span class="nav-ic" id="navIconOverview" aria-hidden="true"></span>
-            <span class="nav-label">概览</span>
+            <span class="nav-label" data-i18n="tabOverview">概览</span>
             <span class="nav-count" id="navCountOverview"></span>
           </button>
           <button class="nav-btn" type="button" role="tab" aria-selected="false" aria-controls="view-projects" tabindex="-1" data-view="projects">
             <span class="nav-ic" id="navIconProjects" aria-hidden="true"></span>
-            <span class="nav-label">项目</span>
+            <span class="nav-label" data-i18n="tabProjects">项目</span>
             <span class="nav-count" id="navCountProjects"></span>
           </button>
           <button class="nav-btn" type="button" role="tab" aria-selected="false" aria-controls="view-processes" tabindex="-1" data-view="processes">
             <span class="nav-ic" id="navIconProcesses" aria-hidden="true"></span>
-            <span class="nav-label">进程</span>
+            <span class="nav-label" data-i18n="tabProcesses">进程</span>
             <span class="nav-count" id="navCountProcesses"></span>
           </button>
           <button class="nav-btn" type="button" role="tab" aria-selected="false" aria-controls="view-files" tabindex="-1" data-view="files">
             <span class="nav-ic" id="navIconFiles" aria-hidden="true"></span>
-            <span class="nav-label">文件浏览</span>
+            <span class="nav-label" data-i18n="tabFiles">文件浏览</span>
             <span class="nav-count" id="navCountFiles"></span>
           </button>
         </nav>
@@ -100,12 +100,13 @@
           <div class="side-controls">
             <button class="console-control" id="refreshBtn" type="button" title="刷新状态" aria-label="刷新状态">
               <span id="refreshIcon" aria-hidden="true"></span>
-              <span class="console-action-label">刷新</span>
+              <span class="console-action-label" data-i18n="refresh">刷新</span>
             </button>
             <button class="console-control danger" id="stopConsoleBtn" type="button" title="停止服务" aria-label="停止服务">
               <span id="stopConsoleIcon" aria-hidden="true"></span>
-              <span class="console-action-label" id="stopConsoleLabel">停止</span>
+              <span class="console-action-label" id="stopConsoleLabel" data-i18n="stopConsole">停止</span>
             </button>
+            <button class="icon-btn" id="langBtn" type="button" title="Switch Language / 切换语言" aria-label="Switch Language / 切换语言" style="font-weight:600;font-size:12px;">EN</button>
             <button class="icon-btn" id="themeBtn" type="button" title="切换主题" aria-label="切换主题"></button>
           </div>
         </div>
@@ -127,13 +128,13 @@
             <div class="vh-right">
               <button class="cmdk-trigger" id="cmdkTrigger" type="button" aria-label="打开命令面板">
                 <span class="cmdk-ic" id="cmdkIcon" aria-hidden="true"></span>
-                <span class="cmdk-placeholder">搜索项目、进程或输入操作…</span>
+                <span class="cmdk-placeholder" data-i18n="cmdkPlaceholder">搜索项目、进程或输入操作…</span>
                 <kbd>⌘K</kbd>
               </button>
               <div class="quick-actions" id="quickActions">
-                <button class="qa-chip" type="button" data-qa="refresh"><span class="qa-ic" data-qa-icon="refresh-cw" aria-hidden="true"></span>刷新状态</button>
-                <button class="qa-chip" type="button" data-qa="copy-home"><span class="qa-ic" data-qa-icon="copy" aria-hidden="true"></span>复制家目录路径</button>
-                <button class="qa-chip" type="button" data-qa="goto-files"><span class="qa-ic" data-qa-icon="folder-git-2" aria-hidden="true"></span>浏览文件</button>
+                <button class="qa-chip" type="button" data-qa="refresh"><span class="qa-ic" data-qa-icon="refresh-cw" aria-hidden="true"></span><span data-i18n="qaRefreshShort">刷新状态</span></button>
+                <button class="qa-chip" type="button" data-qa="copy-home"><span class="qa-ic" data-qa-icon="copy" aria-hidden="true"></span><span data-i18n="qaCopyHome">复制家目录路径</span></button>
+                <button class="qa-chip" type="button" data-qa="goto-files"><span class="qa-ic" data-qa-icon="folder-git-2" aria-hidden="true"></span><span data-i18n="qaBrowseFiles">浏览文件</span></button>
               </div>
             </div>
           </div>
@@ -144,39 +145,39 @@
               <div class="ov">
                 <span class="ov-icon tone-blue" data-ov-icon="layout-grid" aria-hidden="true"></span>
                 <div class="ov-body">
-                  <div class="ov-label">项目总数</div>
+                  <div class="ov-label" data-i18n="ovProjects">项目总数</div>
                   <div class="ov-main"><span class="ov-num" id="ovProjects">0</span></div>
-                  <div class="ov-sub" id="ovProjectsSub">扫描中…</div>
+                  <div class="ov-sub" id="ovProjectsSub" data-i18n="ovProjectsSub">扫描中…</div>
                 </div>
               </div>
               <div class="ov">
                 <span class="ov-icon tone-green" data-ov-icon="folder" aria-hidden="true"></span>
                 <div class="ov-body">
-                  <div class="ov-label">文件总数</div>
+                  <div class="ov-label" data-i18n="ovFiles">文件总数</div>
                   <div class="ov-main"><span class="ov-num" id="ovFiles">—</span></div>
-                  <div class="ov-sub" id="ovFilesSub">已忽略依赖/缓存目录</div>
+                  <div class="ov-sub" id="ovFilesSub" data-i18n="ovFilesSub">已忽略依赖/缓存目录</div>
                 </div>
               </div>
               <div class="ov">
                 <span class="ov-icon tone-purple" data-ov-icon="hard-drive" aria-hidden="true"></span>
                 <div class="ov-body">
-                  <div class="ov-label">磁盘占用</div>
+                  <div class="ov-label" data-i18n="ovSize">磁盘占用</div>
                   <div class="ov-main"><span class="ov-num" id="ovSize">—</span></div>
-                  <div class="ov-sub">项目目录合计</div>
+                  <div class="ov-sub" data-i18n="ovSizeSub">项目目录合计</div>
                 </div>
               </div>
               <div class="ov">
                 <span class="ov-icon tone-amber" data-ov-icon="activity" aria-hidden="true"></span>
                 <div class="ov-body">
-                  <div class="ov-label">运行中进程</div>
+                  <div class="ov-label" data-i18n="ovProcesses">运行中进程</div>
                   <div class="ov-main"><span class="ov-num" id="ovProcesses">0</span><span class="status-dot running"></span></div>
-                  <div class="ov-sub" id="ovProcessesSub">当前用户</div>
+                  <div class="ov-sub" id="ovProcessesSub" data-i18n="ovProcessesSub">当前用户</div>
                 </div>
               </div>
               <div class="ov">
                 <span class="ov-icon tone-cyan" data-ov-icon="gauge" aria-hidden="true"></span>
                 <div class="ov-body">
-                  <div class="ov-label">总 CPU</div>
+                  <div class="ov-label" data-i18n="ovCpu">总 CPU</div>
                   <div class="ov-main"><span class="ov-num ov-mono" id="ovCpu">0.0%</span></div>
                   <svg class="spark" id="sparkCpu" viewBox="0 0 100 26" preserveAspectRatio="none" aria-hidden="true"><polyline points="" fill="none" /></svg>
                 </div>
@@ -184,7 +185,7 @@
               <div class="ov">
                 <span class="ov-icon tone-pink" data-ov-icon="memory-stick" aria-hidden="true"></span>
                 <div class="ov-body">
-                  <div class="ov-label">总内存</div>
+                  <div class="ov-label" data-i18n="ovMem">总内存</div>
                   <div class="ov-main"><span class="ov-num ov-mono" id="ovMem">0.0%</span></div>
                   <svg class="spark" id="sparkMem" viewBox="0 0 100 26" preserveAspectRatio="none" aria-hidden="true"><polyline points="" fill="none" /></svg>
                 </div>
@@ -193,19 +194,19 @@
 
             <!-- 项目启停 -->
             <section class="panel">
-              <div class="sec-label"><span>Control · 项目启停</span><span class="sec-count" id="runningSecCount"></span><i></i></div>
+              <div class="sec-label"><span data-i18n="secControl">Control · 项目启停</span><span class="sec-count" id="runningSecCount"></span><i></i></div>
               <div class="dyn-list" id="runningList"></div>
             </section>
 
             <!-- Docker 容器总览 -->
             <section class="panel">
-              <div class="sec-label"><span>Docker · 容器总览</span><span class="sec-count" id="dockerSecCount"></span><i></i></div>
+              <div class="sec-label"><span data-i18n="secDocker">Docker · 容器总览</span><span class="sec-count" id="dockerSecCount"></span><i></i></div>
               <div class="dyn-list" id="dockerList"></div>
             </section>
 
             <!-- 最近活跃项目 -->
             <section class="panel">
-              <div class="sec-label"><span>Recent · 最近活跃项目</span><span class="sec-count" id="recentSecCount"></span><i></i></div>
+              <div class="sec-label"><span data-i18n="secRecent">Recent · 最近活跃项目</span><span class="sec-count" id="recentSecCount"></span><i></i></div>
               <div class="dyn-list" id="recentList"></div>
             </section>
           </section>
@@ -214,13 +215,13 @@
           <section class="view" id="view-projects" role="tabpanel" aria-labelledby="tab-projects" aria-hidden="true">
             <section class="panel">
               <div class="sec-label">
-                <span>Projects · 项目</span><span class="sec-count" id="projSecCount"></span><i></i>
+                <span data-i18n="secProjects">Projects · 项目</span><span class="sec-count" id="projSecCount"></span><i></i>
                 <div class="filter-row" id="projFilter" role="group" aria-label="筛选项目">
-                  <input class="filter-input" id="projSearch" placeholder="搜索名称 / 备注 / 路径…" autocomplete="off">
-                  <button class="fchip active" type="button" data-f="all">全部</button>
-                  <button class="fchip" type="button" data-f="running">运行中</button>
-                  <button class="fchip" type="button" data-f="git">有提交</button>
-                  <button class="fchip" type="button" data-f="unlabeled">未标注</button>
+                  <input class="filter-input" id="projSearch" placeholder="搜索名称 / 备注 / 路径…" autocomplete="off" data-i18n-placeholder="searchProjectsPh">
+                  <button class="fchip active" type="button" data-f="all" data-i18n="filterAll">全部</button>
+                  <button class="fchip" type="button" data-f="running" data-i18n="filterRunning">运行中</button>
+                  <button class="fchip" type="button" data-f="git" data-i18n="filterGit">有提交</button>
+                  <button class="fchip" type="button" data-f="unlabeled" data-i18n="filterUnlabeled">未标注</button>
                 </div>
               </div>
               <div class="app-grid" id="projGrid"></div>
@@ -233,69 +234,69 @@
               <div class="ov">
                 <span class="ov-icon tone-green" data-ov-icon="server" aria-hidden="true"></span>
                 <div class="ov-body">
-                  <div class="ov-label">项目相关进程</div>
+                  <div class="ov-label" data-i18n="statMine">项目相关进程</div>
                   <div class="ov-main"><span class="ov-num" id="statMine">0</span><span class="status-dot running"></span></div>
-                  <div class="ov-sub" id="statMineSub">cwd 归属家目录项目</div>
+                  <div class="ov-sub" id="statMineSub" data-i18n="statMineSub">cwd 归属家目录项目</div>
                 </div>
               </div>
               <div class="ov">
                 <span class="ov-icon tone-blue" data-ov-icon="activity" aria-hidden="true"></span>
                 <div class="ov-body">
-                  <div class="ov-label">全部进程</div>
+                  <div class="ov-label" data-i18n="statAll">全部进程</div>
                   <div class="ov-main"><span class="ov-num" id="statAll">0</span></div>
-                  <div class="ov-sub">当前用户</div>
+                  <div class="ov-sub" data-i18n="statAllSub">当前用户</div>
                 </div>
               </div>
               <div class="ov">
                 <span class="ov-icon tone-cyan" data-ov-icon="gauge" aria-hidden="true"></span>
                 <div class="ov-body">
-                  <div class="ov-label">总 CPU</div>
+                  <div class="ov-label" data-i18n="statCpu">总 CPU</div>
                   <div class="ov-main"><span class="ov-num ov-mono" id="statCpu">0.0%</span></div>
-                  <div class="ov-sub" id="statCpuSub">负载</div>
+                  <div class="ov-sub" id="statCpuSub" data-i18n="statCpuSub">负载</div>
                 </div>
               </div>
               <div class="ov">
                 <span class="ov-icon tone-purple" data-ov-icon="memory-stick" aria-hidden="true"></span>
                 <div class="ov-body">
-                  <div class="ov-label">总内存</div>
+                  <div class="ov-label" data-i18n="statMem">总内存</div>
                   <div class="ov-main"><span class="ov-num ov-mono" id="statMem">0.0%</span></div>
-                  <div class="ov-sub" id="statMemSub">占用</div>
+                  <div class="ov-sub" id="statMemSub" data-i18n="statMemSub">占用</div>
                 </div>
               </div>
               <div class="ov">
                 <span class="ov-icon tone-grey" data-ov-icon="clock" aria-hidden="true"></span>
                 <div class="ov-body">
-                  <div class="ov-label">最后更新</div>
+                  <div class="ov-label" data-i18n="statTime">最后更新</div>
                   <div class="ov-main"><span class="ov-num ov-time" id="statTime">--:--:--</span></div>
-                  <div class="ov-sub">2 秒轮询</div>
+                  <div class="ov-sub" data-i18n="statTimeSub">2 秒轮询</div>
                 </div>
               </div>
             </div>
 
             <section class="panel">
               <div class="sec-label">
-                <span>Processes · 进程</span><span class="sec-count" id="procSecCount"></span><i></i>
+                <span data-i18n="secProcesses">Processes · 进程</span><span class="sec-count" id="procSecCount"></span><i></i>
                 <div class="filter-row" id="procFilter" role="group" aria-label="筛选进程">
-                  <input class="filter-input" id="procSearch" placeholder="过滤命令 / 项目…" autocomplete="off">
-                  <button class="fchip active" type="button" data-p="project">项目相关</button>
-                  <button class="fchip" type="button" data-p="all">全部</button>
+                  <input class="filter-input" id="procSearch" placeholder="过滤命令 / 项目…" autocomplete="off" data-i18n-placeholder="searchProcsPh">
+                  <button class="fchip active" type="button" data-p="project" data-i18n="filterProjectProcs">项目相关</button>
+                  <button class="fchip" type="button" data-p="all" data-i18n="filterAllProcs">全部</button>
                 </div>
               </div>
               <div class="tbl" role="table" aria-label="进程列表">
                 <div class="tr th" role="row">
                   <span class="c-dot" role="columnheader"><span class="sr-only">状态</span></span>
-                  <span class="c-title" role="columnheader">进程</span>
-                  <span class="c-pid" role="columnheader">PID</span>
-                  <span class="c-proj" role="columnheader">项目</span>
-                  <span class="c-load" role="columnheader">负载</span>
-                  <span class="c-mem" role="columnheader">内存</span>
-                  <span class="c-up" role="columnheader">启动</span>
-                  <span class="c-act" role="columnheader">操作</span>
+                  <span class="c-title" role="columnheader" data-i18n="colProcess">进程</span>
+                  <span class="c-pid" role="columnheader" data-i18n="colPid">PID</span>
+                  <span class="c-proj" role="columnheader" data-i18n="colProject">项目</span>
+                  <span class="c-load" role="columnheader" data-i18n="colLoad">负载</span>
+                  <span class="c-mem" role="columnheader" data-i18n="colMem">内存</span>
+                  <span class="c-up" role="columnheader" data-i18n="colUp">启动</span>
+                  <span class="c-act" role="columnheader" data-i18n="colAct">操作</span>
                 </div>
                 <div class="tbl-body" id="procList" role="rowgroup"></div>
                 <div class="empty-state" id="procEmpty" role="row" hidden>
                   <div class="empty-icon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20v2" /><path d="M12 2v2" /><path d="M17 20v2" /><path d="M17 2v2" /><path d="M2 12h2" /><path d="M2 17h2" /><path d="M2 7h2" /><path d="M20 12h2" /><path d="M20 17h2" /><path d="M20 7h2" /><path d="M7 20v2" /><path d="M7 2v2" /><rect width="16" height="16" x="4" y="4" rx="2" /></svg></div>
-                  <p role="cell" aria-colspan="8">当前没有匹配的进程</p>
+                  <p role="cell" aria-colspan="8" data-i18n="procEmpty">当前没有匹配的进程</p>
                 </div>
               </div>
             </section>
@@ -305,12 +306,12 @@
           <section class="view" id="view-files" role="tabpanel" aria-labelledby="tab-files" aria-hidden="true">
             <div class="files-layout">
               <section class="files-side panel">
-                <div class="sec-label"><span>项目树</span><i></i>
+                <div class="sec-label"><span data-i18n="secFileTree">项目树</span><i></i>
                   <div class="filter-row" style="gap:8px">
                     <label class="hidden-toggle" title="显示隐藏文件/目录（. 开头）">
-                      <input type="checkbox" id="showHiddenToggle"> 隐藏
+                      <input type="checkbox" id="showHiddenToggle"> <span data-i18n="hiddenFiles">隐藏</span>
                     </label>
-                    <button class="fchip" id="fileRefreshBtn" type="button" title="刷新当前目录">刷新</button>
+                    <button class="fchip" id="fileRefreshBtn" type="button" title="刷新当前目录" data-i18n="refresh">刷新</button>
                   </div>
                 </div>
                 <div class="tree-list" id="fileTree" role="tree" aria-label="项目目录树"></div>
@@ -319,15 +320,15 @@
                 <div class="crumbs mono" id="fileCrumbs"></div>
                 <div class="tbl files-tbl" role="table" aria-label="文件列表">
                   <div class="tr th" role="row">
-                    <span class="c-title" role="columnheader">名称</span>
-                    <span class="c-fsize" role="columnheader">大小</span>
-                    <span class="c-fmtime" role="columnheader">修改时间</span>
-                    <span class="c-act" role="columnheader">操作</span>
+                    <span class="c-title" role="columnheader" data-i18n="colName">名称</span>
+                    <span class="c-fsize" role="columnheader" data-i18n="colSize">大小</span>
+                    <span class="c-fmtime" role="columnheader" data-i18n="colMtime">修改时间</span>
+                    <span class="c-act" role="columnheader" data-i18n="colAct">操作</span>
                   </div>
                   <div class="tbl-body" id="fileList" role="rowgroup"></div>
                   <div class="empty-state" id="fileEmpty" role="row" hidden>
                     <div class="empty-icon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z" /></svg></div>
-                    <p role="cell" aria-colspan="4">空文件夹</p>
+                    <p role="cell" aria-colspan="4" data-i18n="fileEmpty">空文件夹</p>
                   </div>
                 </div>
               </section>
@@ -341,43 +342,43 @@
           <div class="side-stack" id="sideOverview">
             <section class="widget" aria-labelledby="feedTitleL">
               <div class="widget-head">
-                <h3 id="feedTitleL">实时动态</h3>
-                <button class="widget-link" id="feedClearL" type="button">清空</button>
+                <h3 id="feedTitleL" data-i18n="feedTitle">实时动态</h3>
+                <button class="widget-link" id="feedClearL" type="button" data-i18n="feedClear">清空</button>
               </div>
               <div class="feed-list" id="feedListL" role="log" aria-live="off"></div>
             </section>
             <section class="widget" aria-labelledby="topProjTitleL">
-              <div class="widget-head"><h3 id="topProjTitleL">活跃项目 TOP 5</h3></div>
+              <div class="widget-head"><h3 id="topProjTitleL" data-i18n="topProjTitle">活跃项目 TOP 5</h3></div>
               <div class="top5-list" id="topProjL"></div>
             </section>
             <section class="widget" aria-labelledby="quickTitle">
-              <div class="widget-head"><h3 id="quickTitle">快捷操作</h3></div>
+              <div class="widget-head"><h3 id="quickTitle" data-i18n="quickTitle">快捷操作</h3></div>
               <div class="quick-list">
-                <button class="quick-item" type="button" data-qa="refresh"><span class="qa-ic" data-qa-icon="refresh-cw" aria-hidden="true"></span>刷新所有状态</button>
-                <button class="quick-item" type="button" data-qa="copy-home"><span class="qa-ic" data-qa-icon="copy" aria-hidden="true"></span>复制家目录路径</button>
-                <button class="quick-item" type="button" data-qa="logs"><span class="qa-ic" data-qa-icon="file-text" aria-hidden="true"></span>打开日志中心<kbd>⌘J</kbd></button>
+                <button class="quick-item" type="button" data-qa="refresh"><span class="qa-ic" data-qa-icon="refresh-cw" aria-hidden="true"></span><span data-i18n="qaRefresh">刷新所有状态</span></button>
+                <button class="quick-item" type="button" data-qa="copy-home"><span class="qa-ic" data-qa-icon="copy" aria-hidden="true"></span><span data-i18n="qaCopyHome">复制家目录路径</span></button>
+                <button class="quick-item" type="button" data-qa="logs"><span class="qa-ic" data-qa-icon="file-text" aria-hidden="true"></span><span data-i18n="qaLogs">打开日志中心</span><kbd>⌘J</kbd></button>
               </div>
             </section>
             <section class="widget tips" id="tipsWidget" aria-labelledby="tipsTitle">
-              <div class="widget-head"><h3 id="tipsTitle">小贴士</h3><span class="tips-ic" id="tipsIcon" aria-hidden="true"></span></div>
+              <div class="widget-head"><h3 id="tipsTitle" data-i18n="tipsTitle">小贴士</h3><span class="tips-ic" id="tipsIcon" aria-hidden="true"></span></div>
               <p class="tips-text" id="tipsText"></p>
-              <button class="btn tips-action" id="tipsAction" type="button" hidden>去处理</button>
+              <button class="btn tips-action" id="tipsAction" type="button" hidden data-i18n="tipsAction">去处理</button>
             </section>
           </div>
           <div class="side-stack" id="sideProc" hidden>
             <section class="widget" aria-labelledby="feedTitleS">
               <div class="widget-head">
-                <h3 id="feedTitleS">实时告警</h3>
-                <button class="widget-link" id="feedClearS" type="button">清空</button>
+                <h3 id="feedTitleS" data-i18n="feedAlerts">实时告警</h3>
+                <button class="widget-link" id="feedClearS" type="button" data-i18n="feedClear">清空</button>
               </div>
               <div class="feed-list" id="feedListS" role="log" aria-live="off"></div>
             </section>
             <section class="widget" aria-labelledby="topResTitle">
               <div class="widget-head">
-                <h3 id="topResTitle">进程资源 TOP 5</h3>
+                <h3 id="topResTitle" data-i18n="topResTitle">进程资源 TOP 5</h3>
                 <div class="mini-tabs" id="resTabs" role="group" aria-label="资源指标">
                   <button class="mini-tab active" type="button" data-metric="cpu">CPU</button>
-                  <button class="mini-tab" type="button" data-metric="mem">内存</button>
+                  <button class="mini-tab" type="button" data-metric="mem" data-i18n="tabMem">内存</button>
                 </div>
               </div>
               <div class="top5-list" id="topResS"></div>
@@ -396,12 +397,12 @@
       <span class="palette-ic" id="paletteIcon" aria-hidden="true"></span>
       <input id="paletteInput" role="combobox" aria-autocomplete="list" aria-controls="paletteList"
         aria-haspopup="listbox" aria-expanded="false" aria-label="搜索命令"
-        placeholder="搜索项目或操作…" autocomplete="off" spellcheck="false">
+        placeholder="搜索项目或操作…" autocomplete="off" spellcheck="false" data-i18n-placeholder="paletteSearchPh">
       <kbd>esc</kbd>
     </div>
     <div class="palette-list" id="paletteList" role="listbox" aria-label="可执行命令"></div>
     <div class="palette-foot mono">
-      <span>↑↓ 选择</span><span>↵ 执行</span><span>esc 关闭</span>
+      <span data-i18n="paletteSelect">↑↓ 选择</span><span data-i18n="paletteExec">↵ 执行</span><span data-i18n="paletteClose">esc 关闭</span>
     </div>
   </div>
 </div>
@@ -409,29 +410,29 @@
 <!-- ===== 项目标注模态 ===== -->
 <div class="modal-mask" id="labelMask" aria-hidden="true" inert>
   <div class="modal" role="dialog" aria-modal="true" aria-labelledby="labelTitle">
-    <h3 class="modal-title" id="labelTitle">标注项目</h3>
+    <h3 class="modal-title" id="labelTitle" data-i18n="labelModalTitle">标注项目</h3>
     <div class="field">
-      <label for="labelPath">项目路径</label>
+      <label for="labelPath" data-i18n="labelPath">项目路径</label>
       <input id="labelPath" readonly autocomplete="off" style="font-family:var(--font-mono);font-size:11px">
     </div>
     <div class="field">
-      <label for="labelName">显示名称</label>
-      <input id="labelName" placeholder="如：WSL 指挥中心" autocomplete="off" maxlength="60">
-      <p class="hint">留空则显示文件夹原名</p>
+      <label for="labelName" data-i18n="labelName">显示名称</label>
+      <input id="labelName" placeholder="如：WSL 指挥中心" autocomplete="off" maxlength="60" data-i18n-placeholder="labelNamePh">
+      <p class="hint" data-i18n="labelNameHint">留空则显示文件夹原名</p>
     </div>
     <div class="field">
-      <label for="labelNote">备注（可选）</label>
-      <textarea id="labelNote" rows="3" placeholder="如：WSL2 本地项目指挥中心，Python 后端 + 原生前端…" maxlength="300"></textarea>
+      <label for="labelNote" data-i18n="labelNote">备注（可选）</label>
+      <textarea id="labelNote" rows="3" placeholder="如：WSL2 本地项目指挥中心，Python 后端 + 原生前端…" maxlength="300" data-i18n-placeholder="labelNotePh"></textarea>
     </div>
     <div class="field">
-      <label for="labelCmd">启动命令（可选）</label>
-      <input id="labelCmd" placeholder="如: python3 server.py / npm start / ./start.sh" autocomplete="off" maxlength="200">
+      <label for="labelCmd" data-i18n="labelCmd">启动命令（可选）</label>
+      <input id="labelCmd" placeholder="如: python3 server.py / npm start / ./start.sh" autocomplete="off" maxlength="200" data-i18n-placeholder="labelCmdPh">
       <p class="hint" id="labelCmdHint"></p>
     </div>
     <div class="modal-actions">
-      <button class="btn" id="labelClear" type="button">清除标注</button>
-      <button class="btn" id="labelCancel" type="button">取消</button>
-      <button class="btn btn-accent" id="labelSave" type="button">保存</button>
+      <button class="btn" id="labelClear" type="button" data-i18n="labelClear">清除标注</button>
+      <button class="btn" id="labelCancel" type="button" data-i18n="cancel">取消</button>
+      <button class="btn btn-accent" id="labelSave" type="button" data-i18n="save">保存</button>
     </div>
   </div>
 </div>
@@ -439,14 +440,14 @@
 <!-- ===== 危险操作确认模态 ===== -->
 <div class="modal-mask" id="confirmMask" aria-hidden="true" inert>
   <div class="modal modal-sm" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
-    <h3 class="modal-title" id="confirmTitle">确认</h3>
+    <h3 class="modal-title" id="confirmTitle" data-i18n="confirmModalTitle">确认</h3>
     <div class="confirm-body" id="confirmBody"></div>
     <label class="force-row" id="forceRow" hidden>
-      <input type="checkbox" id="forceCheck"> 强制结束 (kill -9)
+      <input type="checkbox" id="forceCheck"> <span data-i18n="forceKill">强制结束 (kill -9)</span>
     </label>
     <div class="modal-actions">
-      <button class="btn" id="confirmCancel" type="button">取消</button>
-      <button class="btn btn-stop" id="confirmOk" type="button">确认</button>
+      <button class="btn" id="confirmCancel" type="button" data-i18n="cancel">取消</button>
+      <button class="btn btn-stop" id="confirmOk" type="button" data-i18n="confirm">确认</button>
     </div>
   </div>
 </div>
@@ -454,10 +455,10 @@
 <!-- ===== 日志中心 ===== -->
 <div class="modal-mask" id="logsMask" aria-hidden="true" inert>
   <div class="modal modal-sm" role="dialog" aria-modal="true" aria-labelledby="logsMaskTitle">
-    <h3 class="modal-title" id="logsMaskTitle">日志中心</h3>
+    <h3 class="modal-title" id="logsMaskTitle" data-i18n="logsCenterTitle">日志中心</h3>
     <div class="logs-list" id="logsList"></div>
     <div class="modal-actions">
-      <button class="btn" id="logsMaskClose" type="button">关闭</button>
+      <button class="btn" id="logsMaskClose" type="button" data-i18n="close">关闭</button>
     </div>
   </div>
 </div>
@@ -465,41 +466,41 @@
 <!-- ===== 设置中心 ===== -->
 <div class="modal-mask" id="settingsMask" aria-hidden="true" inert>
   <div class="modal modal-sm" role="dialog" aria-modal="true" aria-labelledby="settingsMaskTitle">
-    <h3 class="modal-title" id="settingsMaskTitle">设置中心</h3>
+    <h3 class="modal-title" id="settingsMaskTitle" data-i18n="settingsTitle">设置中心</h3>
     <div class="set-row">
       <div class="set-copy">
-        <div class="set-name">外观</div>
-        <div class="set-hint">浅色、深色或跟随系统</div>
+        <div class="set-name" data-i18n="setAppearance">外观</div>
+        <div class="set-hint" data-i18n="setAppearanceHint">浅色、深色或跟随系统</div>
       </div>
       <div class="mini-tabs" id="setAppearance" role="group" aria-label="外观">
-        <button class="mini-tab" type="button" data-appearance="auto">自动</button>
-        <button class="mini-tab" type="button" data-appearance="light">浅色</button>
-        <button class="mini-tab" type="button" data-appearance="dark">深色</button>
+        <button class="mini-tab" type="button" data-appearance="auto" data-i18n="appAuto">自动</button>
+        <button class="mini-tab" type="button" data-appearance="light" data-i18n="appLight">浅色</button>
+        <button class="mini-tab" type="button" data-appearance="dark" data-i18n="appDark">深色</button>
       </div>
     </div>
     <div class="set-row">
       <div class="set-copy">
-        <div class="set-name">忽略规则</div>
-        <div class="set-hint">命中规则（名称或路径片段）的目录不展示、不统计；隐藏目录默认忽略</div>
+        <div class="set-name" data-i18n="setIgnore">忽略规则</div>
+        <div class="set-hint" data-i18n="setIgnoreHint">命中规则（名称或路径片段）的目录不展示、不统计；隐藏目录默认忽略</div>
       </div>
     </div>
     <div class="ignore-editor">
       <div class="ignore-chips" id="ignoreChips"></div>
       <div class="ignore-add">
-        <input id="ignoreInput" placeholder="如: downloads / tmp / backup" autocomplete="off">
-        <button class="btn" id="ignoreAdd" type="button">添加</button>
+        <input id="ignoreInput" placeholder="如: downloads / tmp / backup" autocomplete="off" data-i18n-placeholder="ignorePh">
+        <button class="btn" id="ignoreAdd" type="button" data-i18n="add">添加</button>
       </div>
     </div>
     <div class="set-info-list">
-      <div class="set-info"><span>版本</span><span class="mono" id="setVersion">—</span></div>
-      <div class="set-info"><span>端口</span><span class="mono" id="setPort">—</span></div>
-      <div class="set-info"><span>监控目录</span><span class="mono set-path" id="setHome">—</span></div>
-      <div class="set-info"><span>数据目录</span><span class="mono set-path" id="setDataDir">—</span></div>
-      <div class="set-info"><span>WSL 发行版</span><span class="mono" id="setDistro">—</span></div>
-      <div class="set-info"><span>扫描状态</span><span class="mono" id="setScan">—</span></div>
+      <div class="set-info"><span data-i18n="infoVer">版本</span><span class="mono" id="setVersion">—</span></div>
+      <div class="set-info"><span data-i18n="infoPort">端口</span><span class="mono" id="setPort">—</span></div>
+      <div class="set-info"><span data-i18n="infoHome">监控目录</span><span class="mono set-path" id="setHome">—</span></div>
+      <div class="set-info"><span data-i18n="infoDataDir">数据目录</span><span class="mono set-path" id="setDataDir">—</span></div>
+      <div class="set-info"><span data-i18n="infoDistro">WSL 发行版</span><span class="mono" id="setDistro">—</span></div>
+      <div class="set-info"><span data-i18n="infoScan">扫描状态</span><span class="mono" id="setScan">—</span></div>
     </div>
     <div class="modal-actions">
-      <button class="btn" id="settingsMaskClose" type="button">关闭</button>
+      <button class="btn" id="settingsMaskClose" type="button" data-i18n="close">关闭</button>
     </div>
   </div>
 </div>
@@ -508,10 +509,10 @@
 <div class="drawer-mask" id="drawerMask" aria-hidden="true"></div>
 <aside class="drawer" id="logDrawer" role="dialog" aria-modal="true" aria-labelledby="drawerTitle" aria-hidden="true" inert>
   <div class="drawer-head">
-    <span id="drawerTitle">预览</span>
+    <span id="drawerTitle" data-i18n="drawerPreview">预览</span>
     <div class="drawer-tools">
-      <button class="btn" id="drawerCopy" type="button">复制路径</button>
-      <button class="btn" id="drawerCopyWin" type="button">复制 Windows 路径</button>
+      <button class="btn" id="drawerCopy" type="button" data-i18n="copyPath">复制路径</button>
+      <button class="btn" id="drawerCopyWin" type="button" data-i18n="copyWinPath">复制 Windows 路径</button>
       <button class="drawer-close" id="drawerClose" type="button" title="关闭" aria-label="关闭预览"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg></button>
     </div>
   </div>

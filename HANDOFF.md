@@ -1,6 +1,6 @@
 # HANDOFF — 交接文档（给完全没有上下文的新会话）
 
-> 2026-08 生成。本项目 = **WSL 指挥中心（wsl-command）**，一个运行在 WSL2 的本地项目控制台。
+> 2026-08 生成，2026-08-19 更新（发布 v0.2.0：项目卡片置顶 + 启动命令推断增强 + 全量中英文 i18n 国际化 + 开源双语文档）。本项目 = **WSL 指挥中心（wsl-command）**，一个运行在 WSL2 的本地项目控制台。
 > 用户：panda917，WSL2 Ubuntu。当前模型不支持看图（用 image-describe skill 的 luna 代看）。
 
 ---
@@ -22,16 +22,18 @@
 
 ```
 server.py              Python 标准库后端（http.server，仅绑 127.0.0.1）
-static/index.html      单页应用骨架
-static/app.js          主入口（ES Module）：轮询 /api/state 每 2s、⌘K 面板、路由
+static/index.html      单页应用骨架（支持 data-i18n 动态国际化）
+static/app.js          主入口（ES Module）：轮询 /api/state 每 2s、⌘K 面板、路由、i18n 初始化
 static/base.css        行为层样式；static/themes/wsl.css 视觉主题
 static/js/core.js      工具函数/主题/浮层/toast
-static/js/projects.js  项目卡片网格 + 标注弹窗（启停按钮主逻辑）
+static/js/i18n.js      零依赖全量双语字典与动态翻译引擎（支持 EN / 中文 切换与系统语言识别）
+static/js/projects.js  项目卡片网格 + 标注弹窗（含右上角 📌 置顶逻辑与启停按钮主逻辑）
 static/js/overview.js  概览 KPI + 项目启停列表 + Docker 面板
 static/js/processes.js 进程表格
 static/js/files.js     文件浏览（树 + 预览抽屉）
 static/js/control.js   启停操作（确认弹窗 + busy 加载态）★ 独立模块，避免循环依赖
 static/js/widgets.js   右侧动态侧栏、设置/日志中心、预览抽屉
+static/assets/         品牌图标与开源文档高清预览图（preview-launchpad.png / preview-overview.png）
 ```
 
 后端核心 API：`/api/state`（聚合）、`/api/projects/start|stop|stop-all`、`/api/docker/start|stop`、`/api/tree`、`/api/file`、`/api/config`、`/api/scan`。
@@ -45,8 +47,13 @@ static/js/widgets.js   右侧动态侧栏、设置/日志中心、预览抽屉
 5. **启停**：受控进程（token+pgid 识别，只停指挥中心启动的）vs 停止全部（含手动进程，有确认）；操作有确认弹窗 + "⋯ 处理中"加载态
 6. **Docker**：全部容器（含停止的）、自动归属项目（目录名/前缀/镜像关键词三级规则）、启停
 7. **文件浏览**：目录树懒加载、文本预览、复制 Linux/Windows 路径
-8. **桌面启动器**：Windows 桌面快捷方式 → `C:\Users\Administrator\wsl-kongzhi-launcher\`（vbs 隐藏运行 bat → wsl 调 start-server.sh）
-9. **已开源**：GitHub `kongaiyi917-source/wsl-command`，**git 历史已重写为单条提交**（4317806，force push 过），README 中英双语、MIT、THIRD_PARTY_NOTICES（Lucide ISC / Geist Mono OFL）
+8. **启动命令自动检测增强（2026-08-15）**：`detect_start_cmd` 规则扩展——`package.json`（scripts.start→`npm start` / scripts.dev→`npm run dev`）、`start.sh`/`run.sh`→`bash <脚本>`、`manage.py`→`python3 manage.py runserver`、`Cargo.toml`→`cargo run`、`go.mod`→`go run .`、`Makefile`→`make run`、`docker-compose.yml`→`docker compose up -d`、常见 Python 入口（main/app/run/bot/index.py）→`python3 <文件>`、Node 入口（server/app.js）→`node <文件>`；顺带修复坏 JSON 的 package.json 抛 ValueError 的隐患（外层 try 只捕 OSError，会 500）。验证：quant-bot 自动抓到 `bash start.sh`，pi-web 抓到 `npm start`
+9. **卡片文案调整（2026-08-15）**：`projects.js` 无命令提示由「未配置启动命令，点击「▶ 启动」可快速配置」改为「尚未抓取到启动命令，点击「▶ 启动」可手动配置」
+10. **桌面启动器**：Windows 桌面快捷方式 → `C:\Users\Administrator\wsl-kongzhi-launcher\`（vbs 隐藏运行 bat → wsl 调 start-server.sh）
+11. **已开源**：GitHub `kongaiyi917-source/wsl-command`，README 中英双语、MIT、THIRD_PARTY_NOTICES（Lucide ISC / Geist Mono OFL）
+12. **项目卡片置顶（2026-08-19）**：卡片右上角独立放置 📌 图钉按钮，同等运行状态内最高优先级（运行中置顶 > 普通运行中 > 未运行置顶 > 普通未运行）。配置保存在 `config.json` 的 `pins` 字段，跨会话与刷新持久化。
+13. **全量中英文国际化 (i18n)（2026-08-19）**：新增 `static/js/i18n.js`，顶栏新增 `EN / 中` 一键切换，智能识别系统语言并持久化；全量覆盖 Launchpad、Overview、Processes、Explorer、Widgets、弹窗、Toast 及日志实时翻译。
+14. **双语独立文档与高清预览图（2026-08-19）**：英文 `README.md` 与 中文 `README_zh.md` 独立架构，双向跳转；嵌入 `preview-launchpad.png` 与 `preview-overview.png`。
 
 ## 五、踩过的坑（⚠️ 绝对不要再踩）
 
@@ -67,6 +74,8 @@ static/js/widgets.js   右侧动态侧栏、设置/日志中心、预览抽屉
 12. **循环依赖**：overview ↔ projects 互相 import，把启停逻辑抽到独立 `control.js` 解决。
 13. **浏览器缓存旧版页面**：改 UI 后用户可能还在跑旧 JS（旧 HTML 引用已删除的 ops.css → 404）。服务端已用 `Cache-Control: no-store`；用户侧要**强刷或关标签重开**。
 14. **同一行卡片按钮不对齐**：卡片内容行数不同 → 按钮随内容浮动。修复：`.app-card .app-actions { margin-top: auto }` 钉在底部 + 图标统一 Lucide SVG（不要混用 Unicode ⏸/▶ 和 emoji ✏️，渲染尺寸不一）。
+15. **置顶按钮 UI 避坑**：卡片底部操作栏空间有限，置顶按钮放在右上角绝对定位，避免挤压底部的「日志」与「复制路径」按钮。
+16. **i18n 计数与日志语序**：动态数量（如 `6 projects` / `6 个项目`）需通过 `getLang()` 动态格式化，避免中文量词写死在拼接字符串中。
 
 ### Windows 启动器（bat/vbs）
 15. **cmd 引号剥离会破坏 `wsl -e bash -lc "长命令"`**（bash 收到残缺引号）。解法：逻辑写进 WSL 侧脚本 `start-server.sh`，bat 只传无引号路径。
@@ -79,6 +88,7 @@ static/js/widgets.js   右侧动态侧栏、设置/日志中心、预览抽屉
 20. **全局规则要求浏览器自动化用 agent-browser**（`npm i -g agent-browser && agent-browser install` + skill）。**Playwright 已按用户要求卸载**（用户嫌它比 agent-browser 重 800MB），**不要再装 Playwright**。
 21. **git 历史已抹平**：仓库是单条初始提交。以后正常 commit + push 即可，不要再 force push（除非用户要求）。
 22. **pkill 后同一命令行里 nohup 也会被误杀**（同第 1 条，强调两次）。
+23. **pkill -f 匹配整条命令行，会连执行它的 bash 一起杀（2026-08-15 再次踩到）**：只要命令行字符串里含关键字（哪怕关键字只是被删文件的名字），当前 bash 就被匹配杀死，导致同一条命令里后续的 rm / nohup / curl 全部不执行（且几乎无报错）。教训：pkill 永远单独一行；要删文件/启动服务时，先单独 pkill，再分开执行下一步；或改用 `pgrep -f 精确模式` 先看 PID 再 kill。
 
 ## 六、常用验证命令
 

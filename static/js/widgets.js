@@ -6,6 +6,7 @@
    ============================================================ */
 import { $, el, setText, setChildren, icon, state, fmtClock,
   openLayer, closeLayer, act, post, toast, escapeHtml, applyTheme } from './core.js';
+import { t, getLang } from './i18n.js';
 import { openConfirm } from './overlays.js';
 
 const FEED_CAP = 50;
@@ -99,7 +100,7 @@ export function initWidgets() {
     const down = banner.classList.contains('show');
     railConnDot.classList.toggle('running', !down);
     railConnDot.classList.toggle('danger', down);
-    setText(railConnText, down ? '连接中断' : '已连接');
+    setText(railConnText, down ? (getLang() === 'en' ? 'Disconnected' : '连接中断') : (getLang() === 'en' ? 'Connected' : '已连接'));
   };
   new MutationObserver(syncConn)
     .observe(banner, { attributes: true, attributeFilter: ['class'] });
@@ -212,10 +213,11 @@ function renderFeedInto(list, events, emptyText) {
 }
 
 function renderFeeds() {
-  renderFeedInto(feedListL, feedEvents, '暂无动态；进程启停与扫描事件会显示在这里');
+  const isEn = getLang() === 'en';
+  renderFeedInto(feedListL, feedEvents, isEn ? 'No activity yet. Process start/stop and scan events will appear here.' : '暂无动态；进程启停与扫描事件会显示在这里');
   renderFeedInto(feedListS,
     feedEvents.filter(ev => ev.level === 'warn' || ev.level === 'error'),
-    '运行良好，暂无告警');
+    isEn ? 'All systems operational, no alerts.' : '运行良好，暂无告警');
 }
 
 function clearFeed() {
@@ -233,7 +235,7 @@ function renderTopProj(data) {
   topProjL.replaceChildren();
   if (!rows.length) {
     const empty = el('div', 't5-empty');
-    empty.textContent = '暂无项目相关进程';
+    empty.textContent = getLang() === 'en' ? 'No project processes' : '暂无项目相关进程';
     topProjL.appendChild(empty);
     return;
   }
@@ -245,7 +247,7 @@ function renderTopProj(data) {
     pname.textContent = name;
     pname.title = name;
     const tag = el('span', 't5-tag');
-    tag.textContent = n + ' 进程';
+    tag.textContent = getLang() === 'en' ? `${n} procs` : `${n} 进程`;
     row.append(rank, pname, tag);
     topProjL.appendChild(row);
   });
@@ -260,7 +262,7 @@ function renderTopRes(data) {
   topResS.replaceChildren();
   if (!procs.length) {
     const empty = el('div', 't5-empty');
-    empty.textContent = '暂无进程';
+    empty.textContent = getLang() === 'en' ? 'No processes' : '暂无进程';
     topResS.appendChild(empty);
     return;
   }
@@ -304,14 +306,15 @@ function fmtMemPct(rss) {
 function renderTips(data) {
   const scan = data.scan || {};
   let text;
+  const isEn = getLang() === 'en';
   if (scan.state === 'scanning') {
-    text = '正在全量扫描家目录：统计文件数与磁盘占用（已跳过依赖/缓存目录）。';
+    text = isEn ? 'Scanning home directory: computing file count and disk usage.' : '正在全量扫描家目录：统计文件数与磁盘占用（已跳过依赖/缓存目录）。';
   } else if (scan.state === 'done') {
-    text = '已扫描 ' + (scan.projects || 0) + ' 个项目 · ' +
+    text = isEn ? `Scanned ${scan.projects || 0} projects · ${scan.files != null ? scan.files.toLocaleString() + ' files' : ''}. Tip: Press ⌘K for command palette.` : ('已扫描 ' + (scan.projects || 0) + ' 个项目 · ' +
       (scan.files != null ? scan.files.toLocaleString() + ' 个文件' : '') +
-      '。小技巧：按 ⌘K 打开命令面板快速跳转。';
+      '。小技巧：按 ⌘K 打开命令面板快速跳转。');
   } else {
-    text = '等待首次扫描完成。小技巧：按 ⌘K 打开命令面板。';
+    text = isEn ? 'Ready. Tip: Press ⌘K to open command palette.' : '等待首次扫描完成。小技巧：按 ⌘K 打开命令面板。';
   }
   setText(tipsText, text);
   tipsAction.hidden = true;
@@ -363,10 +366,11 @@ function renderLogsList() {
   const box = el('span', 'logs-ic');
   box.appendChild(icon('terminal', 14));
   const main = el('span', 'logs-main');
+  const isEn = getLang() === 'en';
   const name = el('span', 'logs-name');
-  name.textContent = '指挥中心日志';
+  name.textContent = isEn ? 'WSL Command Center Logs' : '指挥中心日志';
   const sub = el('span', 'logs-sub');
-  sub.textContent = '系统 · console.log · 最近 80 行';
+  sub.textContent = isEn ? 'System · console.log · Last 80 lines' : '系统 · console.log · 最近 80 行';
   main.append(name, sub);
   row.append(box, main, icon('chevron-right', 14));
   row.addEventListener('click', () => {
@@ -384,11 +388,20 @@ export function closeLogsCenter() { closeLayer(logsMask); }
 
 let consoleLogTimer = null;
 function openConsoleLog() {
+  const isEn = getLang() === 'en';
   const view = async () => {
     try {
       const r = await fetch('/api/logs');
       const j = await r.json();
-      openDrawer('指挥中心日志', (j.logs || []).join('\n'));
+      let logs = j.logs || [];
+      if (isEn) {
+        logs = logs.map(line => line
+          .replace(/开始全量扫描\s+/g, 'Start full scan ')
+          .replace(/扫描完成:\s*(\d+)\s*个项目,\s*(\d+)\s*个文件,\s*([\d.]+)\s*MB/g, 'Scan completed: $1 projects, $2 files, $3 MB')
+          .replace(/项目开始活跃/g, 'became active')
+          .replace(/项目进程已全部结束/g, 'all processes terminated'));
+      }
+      openDrawer(isEn ? 'WSL Command Center Logs' : '指挥中心日志', logs.join('\n'));
     } catch { /* 忽略，下一轮重试 */ }
   };
   view();
@@ -419,9 +432,12 @@ export function syncSettings() {
   setText($('#setDataDir'), (d.configDataDir) || '~/.config/wsl-command');
   setText($('#setDistro'), d.wsl_distro || '—');
   const scan = d.scan || {};
+  const isEn = getLang() === 'en';
   setText($('#setScan'), scan.state === 'scanning'
-    ? '扫描中…' : scan.state === 'done'
-      ? (scan.projects || 0) + ' 项目 · ' + (scan.files != null ? scan.files.toLocaleString() : '—') + ' 文件'
+    ? (isEn ? 'Scanning…' : '扫描中…') : scan.state === 'done'
+      ? (isEn
+        ? `${scan.projects || 0} projects · ${(scan.files != null ? scan.files.toLocaleString() : '—')} files`
+        : (scan.projects || 0) + ' 项目 · ' + (scan.files != null ? scan.files.toLocaleString() : '—') + ' 文件')
       : '—');
 
   /* 忽略规则 */
@@ -430,7 +446,7 @@ export function syncSettings() {
   const userRules = (state.config && state.config.ignores) || [];
   if (userRules.length === 0) {
     const hint = el('span', 'ignore-hint');
-    hint.textContent = '暂无自定义规则';
+    hint.textContent = isEn ? 'No custom rules' : '暂无自定义规则';
     chips.appendChild(hint);
   }
   userRules.forEach((rule, i) => {

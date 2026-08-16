@@ -1098,6 +1098,40 @@
   border-color: var(--accent);
   color: var(--accent);
 }
+/* 置顶图钉按钮（位于卡片右上角，避免挤压底部操作栏） */
+.app-pin-btn {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--ink-4);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  opacity: 0.45;
+  transition: all 0.15s ease;
+  z-index: 2;
+}
+.app-card:hover .app-pin-btn {
+  opacity: 0.85;
+}
+.app-pin-btn:hover {
+  opacity: 1 !important;
+  color: var(--accent);
+  border-color: var(--line-2);
+  background: var(--card-2, rgba(255, 255, 255, 0.05));
+}
+.app-pin-btn.active {
+  opacity: 1 !important;
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 35%, var(--line-2));
+  background: var(--accent-subtle, rgba(59, 130, 246, 0.12));
+}
 /* 主按钮最小宽度统一，文字按钮视觉一致 */
 .app-card .app-primary,
 .app-card .b-edit {

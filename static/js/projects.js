@@ -4,6 +4,7 @@
    ============================================================ */
 import { $, el, setText, setChildren, state, icon, escapeHtml,
   openLayer, closeLayer, post, toast, act, fmtUptime, truncateMiddle } from './core.js';
+import { t, getLang } from './i18n.js';
 import { openConfirm } from './overlays.js';
 import { fmtSize } from './overview.js';
 import { startProject, stopProject, openProjectLogs, stopProjectAll, isProjectBusy } from './control.js';
@@ -30,6 +31,12 @@ function createCard() {
   meta.append(name, status);
   head.append(iconBox, meta);
 
+  const bPin = el('button', 'app-pin-btn');
+  bPin.type = 'button';
+  bPin.title = t('pin');
+  bPin.setAttribute('aria-label', t('pin'));
+  bPin.appendChild(icon('pin', 14));
+
   const cmd = el('div', 'app-cmd');
 
   const actions = el('div', 'app-actions');
@@ -37,26 +44,26 @@ function createCard() {
   primary.type = 'button';
   const bEdit = el('button', 'btn b-edit');
   bEdit.type = 'button';
-  bEdit.title = '修改名称 / 备注 / 启动命令';
-  bEdit.setAttribute('aria-label', '修改项目');
-  setChildren(bEdit, icon('pencil', 14), document.createTextNode('修改'));
+  bEdit.title = t('edit');
+  bEdit.setAttribute('aria-label', t('edit'));
+  setChildren(bEdit, icon('pencil', 14), document.createTextNode(t('edit')));
   const sub = el('div', 'app-sub-actions');
   const bCopy = el('button', 'ibtn');
   bCopy.type = 'button';
-  bCopy.title = '复制路径';
-  bCopy.setAttribute('aria-label', '复制路径');
+  bCopy.title = t('copyPath');
+  bCopy.setAttribute('aria-label', t('copyPath'));
   bCopy.appendChild(icon('copy', 15));
   const bLogs = el('button', 'ibtn');
   bLogs.type = 'button';
-  bLogs.title = '查看日志';
-  bLogs.setAttribute('aria-label', '查看日志');
+  bLogs.title = t('viewLogs');
+  bLogs.setAttribute('aria-label', t('viewLogs'));
   bLogs.appendChild(icon('file-text', 15));
   bLogs.hidden = true;
   sub.append(bCopy, bLogs);
   actions.append(primary, bEdit, sub);
 
-  card.append(head, cmd, actions);
-  card._r = { iconTxt, name, status, dot, stText, stUp, cmd, primary, bEdit, bCopy, bLogs };
+  card.append(bPin, head, cmd, actions);
+  card._r = { iconTxt, name, status, dot, stText, stUp, cmd, primary, bEdit, bPin, bCopy, bLogs };
   return card;
 }
 
@@ -80,15 +87,15 @@ function updateCard(card, p) {
   const ctrl = p.controlled || {};
   const ctrlRunning = !!(ctrl.running && ctrl.pid);
   if (ctrlRunning) {
-    setText(r.stText, '指挥中心运行中 · PID ' + ctrl.pid);
+    setText(r.stText, (getLang() === 'en' ? 'Running (Managed) · PID ' : '指挥中心运行中 · PID ') + ctrl.pid);
     r.stText.classList.add('ctrl-badge');
     setText(r.stUp, '●');
   } else if (running > 0) {
-    setText(r.stText, '运行中 ' + running + ' 进程（非受控）');
+    setText(r.stText, getLang() === 'en' ? `Running (${running} procs, unmanaged)` : `运行中 ${running} 进程（非受控）`);
     r.stText.classList.remove('ctrl-badge');
     setText(r.stUp, '●');
   } else {
-    setText(r.stText, p.type_hint || '已停止');
+    setText(r.stText, p.type_hint || (getLang() === 'en' ? 'Stopped' : '已停止'));
     r.stText.classList.remove('ctrl-badge');
     setText(r.stUp, '');
   }
@@ -103,23 +110,27 @@ function updateCard(card, p) {
     noteLine.textContent = p.note;
     r.cmd.appendChild(noteLine);
   }
+  const fileUnit = getLang() === 'en' ? ' files' : ' 文件';
   if (p.git) {
     const statLine = el('div', 'cmd-stats mono');
-    statLine.textContent = (p.file_count ?? 0).toLocaleString() + ' 文件 · ' +
+    statLine.textContent = (p.file_count ?? 0).toLocaleString() + fileUnit + ' · ' +
       fmtSize(p.size_bytes) + ' · ' + p.git.date + ' ' + p.git.hash;
     r.cmd.appendChild(statLine);
   } else {
     const statLine = el('div', 'cmd-stats mono');
-    statLine.textContent = (p.file_count ?? 0).toLocaleString() + ' 文件 · ' + fmtSize(p.size_bytes);
+    statLine.textContent = (p.file_count ?? 0).toLocaleString() + fileUnit + ' · ' + fmtSize(p.size_bytes);
     r.cmd.appendChild(statLine);
   }
   if (p.cmd) {
     const cmdLine = el('div', 'cmd-stats mono cmd-start');
-    cmdLine.textContent = '启动: ' + p.cmd + (p.cmd_source === 'config' ? '（手动配置）' : '（自动检测）');
+    const src = p.cmd_source === 'config'
+      ? (getLang() === 'en' ? ' (manual)' : '（手动配置）')
+      : (getLang() === 'en' ? ' (auto)' : '（自动检测）');
+    cmdLine.textContent = (getLang() === 'en' ? 'Start: ' : '启动: ') + p.cmd + src;
     r.cmd.appendChild(cmdLine);
   } else if (!ctrlRunning && !(running > 0)) {
     const noCmd = el('div', 'cmd-stats mono cmd-nocmd');
-    noCmd.textContent = '未配置启动命令，点击「▶ 启动」可快速配置';
+    noCmd.textContent = getLang() === 'en' ? 'No start command detected. Click "Start" to configure.' : '尚未抓取到启动命令，点击「▶ 启动」可手动配置';
     r.cmd.appendChild(noCmd);
   }
   /* docker 容器关联标记 */
@@ -127,7 +138,7 @@ function updateCard(card, p) {
     .filter(c => c.project === p.dir_name);
   if (dockers.length) {
     const dLine = el('div', 'cmd-stats mono docker-line');
-    dLine.textContent = '🐳 docker: ' + dockers.map(c => c.name + (c.running ? '' : '（已停止）')).join(', ');
+    dLine.textContent = '🐳 docker: ' + dockers.map(c => c.name + (c.running ? '' : (getLang() === 'en' ? ' (stopped)' : '（已停止）'))).join(', ');
     r.cmd.appendChild(dLine);
   }
 
@@ -144,20 +155,30 @@ function updateCard(card, p) {
     }
   };
   if (isProjectBusy(p.path)) {
-    setPrimary(null, '⋯ 处理中', 'btn-accent', null, true);
+    setPrimary(null, t('processing'), 'btn-accent', null, true);
   } else if (ctrlRunning) {
-    setPrimary('square', '停止', 'btn-stop', () => stopProject(p.path, p.name));
+    setPrimary('square', t('stop'), 'btn-stop', () => stopProject(p.path, p.name));
   } else if (running > 0) {
-    setPrimary('square', '停止全部', 'btn-stop', () => stopProjectAll(p.path, p.name, running));
+    setPrimary('square', t('stopAll'), 'btn-stop', () => stopProjectAll(p.path, p.name, running));
   } else {
-    setPrimary('play', '启动', 'btn-accent', () => startProject(p.path, p.name));
+    setPrimary('play', t('start'), 'btn-accent', () => startProject(p.path, p.name));
   }
   r.bEdit.onclick = () => openLabelModal(p.path);
+  setChildren(r.bEdit, icon('pencil', 14), document.createTextNode(t('edit')));
+  r.bPin.onclick = () => togglePin(p.path, p.pinned);
+  r.bPin.classList.toggle('active', !!p.pinned);
+  r.bPin.title = p.pinned ? t('unpin') : t('pin');
+  r.bPin.setAttribute('aria-label', p.pinned ? t('unpin') : t('pin'));
+  r.bCopy.title = t('copyPath');
+  r.bCopy.setAttribute('aria-label', t('copyPath'));
   r.bCopy.onclick = () => window.__copyText(p.path);
+  r.bLogs.title = t('viewLogs');
+  r.bLogs.setAttribute('aria-label', t('viewLogs'));
   r.bLogs.hidden = !ctrlRunning && !p.cmd;
   r.bLogs.onclick = () => openProjectLogs(p.path);
 
   card.classList.toggle('running', ctrlRunning || running > 0);
+  card.classList.toggle('pinned', !!p.pinned);
 }
 
 /* 查看项目启动日志（预览抽屉） */
@@ -180,15 +201,18 @@ export function renderProjects(data) {
       (p.note || '').toLowerCase().includes(k) ||
       p.path.toLowerCase().includes(k));
   }
-  /* 排序：运行中的在前，其余按名称 */
+  /* 排序：运行状态绝对优先（运行中在前），同状态下置顶在前，其余按名称 */
   list = [...list].sort((a, b) => {
     const ra = (a.running || 0) > 0 || (a.controlled && a.controlled.running) ? 1 : 0;
     const rb = (b.running || 0) > 0 || (b.controlled && b.controlled.running) ? 1 : 0;
     if (ra !== rb) return rb - ra;
+    const pa = a.pinned ? 1 : 0;
+    const pb = b.pinned ? 1 : 0;
+    if (pa !== pb) return pb - pa;
     return a.name.localeCompare(b.name, 'zh');
   });
 
-  setText($('#projSecCount'), projects.length ? String(projects.length) + ' 个项目' : '');
+  setText($('#projSecCount'), projects.length ? (getLang() === 'en' ? `${projects.length} projects` : String(projects.length) + ' 个项目') : '');
 
   /* 卡片原地更新 */
   const keys = new Map(list.map(p => [p.path, p]));
@@ -217,8 +241,8 @@ export function renderProjects(data) {
     iconBox.appendChild(icon('folder', 28));
     const txt = el('p');
     txt.textContent = projects.length
-      ? '没有匹配的项目，试试调整筛选条件'
-      : '家目录下还没有项目，等待扫描完成…';
+      ? (getLang() === 'en' ? 'No matching projects found. Try changing filters.' : '没有匹配的项目，试试调整筛选条件')
+      : (getLang() === 'en' ? 'No projects found under home directory. Waiting for scan…' : '家目录下还没有项目，等待扫描完成…');
     empty.append(iconBox, txt);
     projGrid.appendChild(empty);
   }
@@ -228,6 +252,31 @@ export function renderProjects(data) {
     const path = projectFilterState.pendingLabel;
     projectFilterState.pendingLabel = null;
     openLabelModal(path);
+  }
+}
+
+/* 切换置顶状态 */
+async function togglePin(path, currentPinned) {
+  const pins = Array.isArray(state.config?.pins) ? [...state.config.pins] : [];
+  let nextPins;
+  if (currentPinned) {
+    nextPins = pins.filter(p => p !== path);
+  } else {
+    if (!pins.includes(path)) nextPins = [...pins, path];
+    else nextPins = pins;
+  }
+  state.config = state.config || {};
+  state.config.pins = nextPins;
+  if (state.data && state.data.projects) {
+    for (const p of state.data.projects) {
+      if (p.path === path) p.pinned = !currentPinned;
+    }
+  }
+  renderProjects(state.data);
+  const res = await post('/api/config', { pins: nextPins });
+  if (res && res.ok !== false) {
+    toast(currentPinned ? '已取消置顶' : '已置顶');
+    if (window.__poll) window.__poll();
   }
 }
 

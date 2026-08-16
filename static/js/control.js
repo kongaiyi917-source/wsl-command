@@ -4,6 +4,7 @@
    启停操作：确认询问 → 执行 → 按钮加载态（⋯ 处理中）
    ============================================================ */
 import { post, toast, act, escapeHtml, state } from './core.js';
+import { getLang } from './i18n.js';
 import { openConfirm } from './overlays.js';
 
 const busySet = new Set();
@@ -94,14 +95,16 @@ export function stopProjectAll(path, name, count) {
 /* ---------------- 项目日志 ---------------- */
 export async function openProjectLogs(path) {
   const { openDrawer } = await import('./widgets.js');
-  const title = '项目日志 · ' + path.replace(/^\/home\/[^/]+/, '~');
-  openDrawer(title, '加载中…');
+  const isEn = getLang() === 'en';
+  const prefix = isEn ? 'Project Logs · ' : '项目日志 · ';
+  const title = prefix + path.replace(/^\/home\/[^/]+/, '~');
+  openDrawer(title, isEn ? 'Loading…' : '加载中…');
   try {
     const r = await fetch('/api/projects/logs?path=' + encodeURIComponent(path));
     const d = await r.json();
-    openDrawer(title, (d.logs || []).join('\n') || '(暂无日志)');
+    openDrawer(title, (d.logs || []).join('\n') || (isEn ? '(No logs recorded)' : '(暂无日志)'));
   } catch (e) {
-    openDrawer(title, '读取失败：' + e.message);
+    openDrawer(title, (isEn ? 'Failed to read: ' : '读取失败：') + e.message);
   }
 }
 

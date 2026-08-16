@@ -342,7 +342,7 @@ a.icon-btn { text-decoration: none; }
 .app-card.running { border-color: color-mix(in srgb, var(--green) 42%, var(--line)); }
 .app-card.has-error { border-color: color-mix(in srgb, var(--red) 55%, var(--line)); }
 
-.app-head { display: flex; align-items: flex-start; gap: 12px; }
+.app-head { display: flex; align-items: flex-start; gap: 12px; padding-right: 28px; }
 .app-icon {
   width: 44px; height: 44px; flex: none;
   display: flex; align-items: center; justify-content: center;
