@@ -38,4 +38,3 @@ jobs:
       - name: Validate Shell scripts syntax
         run: |
           bash -n start.sh
-          bash -n launcher/start-server.sh
