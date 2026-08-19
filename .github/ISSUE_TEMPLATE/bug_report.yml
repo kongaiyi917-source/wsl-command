@@ -1,0 +1,52 @@
+name: 🐛 Bug Report
+description: Report an unexpected error, crash, or UI glitch in WSL Command
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report an issue! Please provide as much detail as possible.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Describe the Bug
+      description: A clear and concise description of what happened.
+      placeholder: When I click on ..., the server crashes / nothing happens.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to Reproduce
+      description: How can we reproduce the issue?
+      placeholder: |
+        1. Run './start.sh'
+        2. Navigate to 'http://localhost:30140'
+        3. Click on ...
+        4. See error
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment Info
+      description: Please share details about your setup.
+      value: |
+        - OS: Windows 10/11
+        - WSL Distro: Ubuntu 22.04 / Debian (etc.)
+        - WSL Version: WSL2
+        - Python Version: `python3 --version`
+        - Browser: Chrome / Edge / Firefox
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Terminal Logs / Error Output
+      description: Paste any terminal logs or browser console errors here.
+      render: shell

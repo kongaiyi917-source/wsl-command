@@ -10,6 +10,8 @@
 </p>
 
 <p align="center">
+  <a href="https://github.com/kongaiyi917-source/wsl-command/actions/workflows/ci.yml"><img src="https://github.com/kongaiyi917-source/wsl-command/actions/workflows/ci.yml/badge.svg" alt="CI Status" /></a>
+  <a href="https://github.com/kongaiyi917-source/wsl-command/releases"><img src="https://img.shields.io/badge/Release-v0.2.0-blue.svg" alt="Release v0.2.0" /></a>
   <img src="https://img.shields.io/badge/Python-3.10+-3776AB.svg?style=flat&logo=python&logoColor=white" alt="Python 3.10+" />
   <img src="https://img.shields.io/badge/WSL2-Ubuntu%20%7C%20Debian-0078D6.svg?style=flat&logo=windows" alt="WSL2" />
   <img src="https://img.shields.io/badge/Dependencies-Zero%20(Standard%20Lib)-success.svg" alt="Zero Dependencies" />

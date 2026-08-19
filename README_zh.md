@@ -10,10 +10,12 @@
 </p>
 
 <p align="center">
+  <a href="https://github.com/kongaiyi917-source/wsl-command/actions/workflows/ci.yml"><img src="https://github.com/kongaiyi917-source/wsl-command/actions/workflows/ci.yml/badge.svg" alt="CI 状态" /></a>
+  <a href="https://github.com/kongaiyi917-source/wsl-command/releases"><img src="https://img.shields.io/badge/%E7%89%88%E6%9C%AC-v0.2.0-blue.svg" alt="版本 v0.2.0" /></a>
   <img src="https://img.shields.io/badge/Python-3.10+-3776AB.svg?style=flat&logo=python&logoColor=white" alt="Python 3.10+" />
   <img src="https://img.shields.io/badge/WSL2-Ubuntu%20%7C%20Debian-0078D6.svg?style=flat&logo=windows" alt="WSL2" />
-  <img src="https://img.shields.io/badge/%E4%BE%9D%E8%50%E6%80%A7-%E9%9B%B6%E4%BE%9D%E8%50%E6%80%A7%20(%E6%A0%87%E5%87%86%E5%BA%93)-success.svg" alt="Zero Dependencies" />
-  <img src="https://img.shields.io/badge/%E8%AE%B8%E5%8F%AF%E8%AF%81-MIT-green.svg" alt="License MIT" />
+  <img src="https://img.shields.io/badge/%E4%BE%9D%E8%B5%96-%E9%9B%B6%E4%BE%9D%E8%B5%96%20(%E6%A0%87%E5%87%86%E5%BA%93)-success.svg" alt="零依赖" />
+  <img src="https://img.shields.io/badge/%E8%AE%B8%E5%8F%AF%E8%AF%81-MIT-green.svg" alt="许可证 MIT" />
 </p>
 
 <p align="center">

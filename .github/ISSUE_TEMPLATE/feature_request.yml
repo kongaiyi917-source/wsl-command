@@ -1,0 +1,33 @@
+name: 💡 Feature Request
+description: Suggest an idea, enhancement, or new feature for WSL Command
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping improve WSL Command! Please describe your idea below.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Is your feature request related to a problem? Please describe.
+      description: A clear description of the pain point or problem you're trying to solve.
+      placeholder: I'm always frustrated when ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Describe the solution you'd like
+      description: A clear description of what you want to happen.
+      placeholder: Add a button to ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Describe alternatives you've considered
+      description: Any alternative solutions or features you've evaluated.
