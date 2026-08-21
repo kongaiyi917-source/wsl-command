@@ -1172,6 +1172,7 @@ def build_state():
         "theme": _config["theme"],
         "uiTheme": "wsl",
         "version": VERSION,
+        "config": _config,
     }
 
 

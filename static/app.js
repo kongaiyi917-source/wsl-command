@@ -184,6 +184,8 @@ function poll(force = false) {
     .then(data => {
       if (pollController !== controller) return null;
       state.data = reconcilePendingUiTheme(data);
+      /* 同步配置（标注/置顶/忽略规则），保证刷新后编辑弹窗能回填 */
+      state.config = data.config || state.config || {};
       render();
       setConnected(true);
       /* 全量扫描刚完成（或完成进度变化）时立即再拉一轮 */
