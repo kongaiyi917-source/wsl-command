@@ -27,7 +27,7 @@ from datetime import datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-VERSION = "0.2.0"
+VERSION = "0.2.1"
 APP_NAME = "wsl-command"
 HOME = Path.home()
 BASE_DIR = Path(__file__).resolve().parent
