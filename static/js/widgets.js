@@ -36,7 +36,7 @@ export function initWidgets() {
     if (!btn) return;
     const action = btn.dataset.qa;
     if (action === 'refresh') {
-      fetch('/api/scan', { method: 'POST' }).catch(() => {});
+      fetch('/api/scan', { method: 'POST', headers: state.token ? { 'X-Auth-Token': state.token } : {} }).catch(() => {});
       if (window.__poll) window.__poll();
     }
     else if (action === 'logs') openLogsCenter();

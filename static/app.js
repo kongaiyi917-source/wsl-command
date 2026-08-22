@@ -186,6 +186,8 @@ function poll(force = false) {
       state.data = reconcilePendingUiTheme(data);
       /* 同步配置（标注/置顶/忽略规则），保证刷新后编辑弹窗能回填 */
       state.config = data.config || state.config || {};
+      /* 同步鉴权 token（写接口需要） */
+      state.token = data.token || state.token || '';
       render();
       setConnected(true);
       /* 全量扫描刚完成（或完成进度变化）时立即再拉一轮 */
@@ -275,7 +277,7 @@ function paletteActions() {
         await copyText(home);
       } },
     { icon: 'refresh-cw', title: t('qaRefresh'), hint: t('cmdHintTools'),
-      run: () => { fetch('/api/scan', { method: 'POST' }).catch(() => {}); poll(true); } },
+      run: () => { fetch('/api/scan', { method: 'POST', headers: state.token ? { 'X-Auth-Token': state.token } : {} }).catch(() => {}); poll(true); } },
     { icon: 'file-text', title: t('qaLogs'), hint: t('cmdHintModal'),
       run: openLogsCenter },
     { icon: 'settings', title: t('cmdOpenSettings'), hint: t('cmdHintModal'),

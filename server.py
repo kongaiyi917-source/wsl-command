@@ -20,13 +20,14 @@ import threading
 import time
 import urllib.parse
 import uuid
+import secrets
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-VERSION = "0.1.0"
+VERSION = "0.2.0"
 APP_NAME = "wsl-command"
 HOME = Path.home()
 BASE_DIR = Path(__file__).resolve().parent
@@ -106,6 +107,31 @@ DEFAULT_CONFIG = {
 
 _config_lock = threading.Lock()
 _config = dict(DEFAULT_CONFIG)
+
+# ---- 鉴权守卫 ----
+# 每次启动随机生成，仅通过 /api/state 下发给本机前端；
+# 敏感写接口要求 X-Auth-Token 匹配，阻止浏览器跨站/本机恶意页面直接调 API。
+_AUTH_TOKEN = secrets.token_hex(16)
+
+
+def _home_path_ok(raw: str) -> bool:
+    """严格路径校验：resolve 后必须等于 HOME 或位于 HOME 下（带斜杠前缀）。"""
+    try:
+        p = Path(raw).resolve()
+    except (OSError, ValueError):
+        return False
+    s = str(p)
+    return s == str(HOME) or s.startswith(str(HOME) + "/")
+
+
+def _hostname_allowed(host: str) -> bool:
+    host = host.split(":", 1)[0].strip().strip("[]").lower()
+    if host in ("localhost", "127.0.0.1", "::1"):
+        return True
+    try:
+        return host == socket.gethostname().lower()
+    except OSError:
+        return False
 
 
 def _atomic_write(path: Path, text: str):
@@ -917,7 +943,7 @@ def project_log_path(path: str) -> Path:
 
 def start_project(path: str):
     """启动项目配置的启动命令；返回 (ok, info)。"""
-    if not str(path).startswith(str(HOME)):
+    if not _home_path_ok(path):
         return False, {"error": "非法路径"}
     with _controlled_lock:
         rec = _controlled.get(path)
@@ -981,6 +1007,8 @@ def start_project(path: str):
 
 def stop_project(path: str):
     """停止该项目的受控进程组（只动控制台启动的进程）。"""
+    if not _home_path_ok(path):
+        return False, {"error": "非法路径"}
     with _controlled_lock:
         rec = _controlled.get(path)
         if not rec:
@@ -1024,6 +1052,8 @@ def stop_project(path: str):
 def stop_project_all(path: str):
     """停止项目下所有进程（含外部启动的），排除指挥中心自身进程组。
     返回 (ok, info)。"""
+    if not _home_path_ok(path):
+        return False, {"error": "非法路径"}
     proj_name = Path(path).name
     procs = snapshot_processes(force=True)
     # 排除指挥中心自身进程；其余全部为目标（含外部启动的）
@@ -1173,6 +1203,7 @@ def build_state():
         "uiTheme": "wsl",
         "version": VERSION,
         "config": _config,
+        "token": _AUTH_TOKEN,
     }
 
 
@@ -1227,6 +1258,27 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Length", "0")
         self.end_headers()
 
+    def _guard(self, sensitive=False):
+        """请求来源守卫：
+        - Host 必须是本机（防 DNS rebinding 伪造来源）；
+        - 敏感写接口：校验 X-Auth-Token + Origin（空或本机）。
+        返回 True 表示放行。"""
+        host = self.headers.get("Host") or ""
+        if not _hostname_allowed(host):
+            return False
+        if sensitive:
+            if self.headers.get("X-Auth-Token", "") != _AUTH_TOKEN:
+                return False
+            origin = self.headers.get("Origin") or ""
+            if origin:
+                try:
+                    oh = urllib.parse.urlparse(origin).hostname or ""
+                except ValueError:
+                    return False
+                if not _hostname_allowed(oh):
+                    return False
+        return True
+
     def _safe_path(self, raw: str):
         """解析并校验绝对路径，防穿越。"""
         try:
@@ -1244,6 +1296,10 @@ class Handler(BaseHTTPRequestHandler):
         qs = urllib.parse.parse_qs(parsed.query)
 
         if path.startswith("/api/"):
+            # Host 校验：防 DNS rebinding（恶意域名解析到 127.0.0.1 时 Host 是攻击域名）
+            if not self._guard(sensitive=False):
+                self._json({"error": "forbidden"}, 403)
+                return
             try:
                 self._api(path[5:], qs)
             except BrokenPipeError:
@@ -1338,6 +1394,10 @@ class Handler(BaseHTTPRequestHandler):
 
     # ---- POST ----
     def do_POST(self):
+        # 所有写接口：Host + Origin + Token 三重校验
+        if not self._guard(sensitive=True):
+            self._json({"error": "forbidden"}, 403)
+            return
         parsed = urllib.parse.urlparse(self.path)
         if parsed.path == "/api/config":
             self._post_config()
@@ -1404,10 +1464,11 @@ class Handler(BaseHTTPRequestHandler):
         except (ValueError, UnicodeDecodeError):
             self._json({"error": "bad json"}, 400)
             return
-        path = str(data.get("path", ""))
-        if not path.startswith(str(HOME)):
+        p = self._safe_path(str(data.get("path", "")))
+        if p is None:
             self._json({"error": "invalid path"}, 400)
             return
+        path = str(p)
         if action == "start":
             ok, info = start_project(path)
         elif action == "stop":
@@ -1427,7 +1488,7 @@ class Handler(BaseHTTPRequestHandler):
         with _config_lock:
             if "labels" in data and isinstance(data["labels"], dict):
                 for k, v in data["labels"].items():
-                    if not str(k).startswith(str(HOME)):
+                    if self._safe_path(str(k)) is None:
                         continue
                     if v and isinstance(v, dict):
                         _config["labels"][k] = {
@@ -1438,7 +1499,8 @@ class Handler(BaseHTTPRequestHandler):
                     else:
                         _config["labels"].pop(k, None)
             if "pins" in data and isinstance(data["pins"], list):
-                _config["pins"] = [str(x) for x in data["pins"] if str(x).startswith(str(HOME))]
+                _config["pins"] = [x for x in data["pins"]
+                                    if self._safe_path(str(x)) is not None]
             if "ignores" in data and isinstance(data["ignores"], list):
                 _config["ignores"] = [str(x).strip()[:120] for x in data["ignores"] if str(x).strip()]
             if "theme" in data and data["theme"] in ("auto", "light", "dark"):

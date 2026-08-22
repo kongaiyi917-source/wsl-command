@@ -143,6 +143,11 @@ async function req(method, path, body) {
     opt.headers = { 'Content-Type': 'application/json' };
     opt.body = JSON.stringify(body);
   }
+  /* 敏感写接口：带上后端下发的鉴权 token（防跨站/本机恶意页面调用） */
+  if (method !== 'GET') {
+    opt.headers = opt.headers || {};
+    if (state.token) opt.headers['X-Auth-Token'] = state.token;
+  }
   try {
     const r = await fetch(path, opt);
     if (r.status === 204) { mutationEpoch += 1; return { ok: true }; }
