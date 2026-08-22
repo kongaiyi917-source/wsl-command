@@ -11,7 +11,7 @@
 
 <p align="center">
   <a href="https://github.com/kongaiyi917-source/wsl-command/actions/workflows/ci.yml"><img src="https://github.com/kongaiyi917-source/wsl-command/actions/workflows/ci.yml/badge.svg" alt="CI 状态" /></a>
-  <a href="https://github.com/kongaiyi917-source/wsl-command/releases"><img src="https://img.shields.io/badge/%E7%89%88%E6%9C%AC-v0.2.0-blue.svg" alt="版本 v0.2.0" /></a>
+  <a href="https://github.com/kongaiyi917-source/wsl-command/releases"><img src="https://img.shields.io/badge/%E7%89%88%E6%9C%AC-v0.2.1-blue.svg" alt="版本 v0.2.1" /></a>
   <img src="https://img.shields.io/badge/Python-3.10+-3776AB.svg?style=flat&logo=python&logoColor=white" alt="Python 3.10+" />
   <img src="https://img.shields.io/badge/WSL2-Ubuntu%20%7C%20Debian-0078D6.svg?style=flat&logo=windows" alt="WSL2" />
   <img src="https://img.shields.io/badge/%E4%BE%9D%E8%B5%96-%E9%9B%B6%E4%BE%9D%E8%B5%96%20(%E6%A0%87%E5%87%86%E5%BA%93)-success.svg" alt="零依赖" />
@@ -70,9 +70,12 @@ python3 server.py
 
 ### 🔒 安全边界
 
-- **仅限本地访问**：仅绑定回环地址 `127.0.0.1`。未开启鉴权前请勿直接映射或反向代理至公网。
-- **防止路径遍历**：文件与目录接口严格限制在 `$HOME` 范围内，所有输入均经过 `realpath` 白名单校验。
+- **仅限本地访问**：仅绑定回环地址 `127.0.0.1`。即使内置 token 鉴权，也请勿直接映射或反向代理至公网（不支持远程暴露）。
+- **请求来源防护**：所有 `/api/*` 请求校验 `Host` 头（防 DNS rebinding）；全部写接口额外要求启动时随机生成的 `X-Auth-Token` 及本地/空 `Origin`。
+- **防止路径遍历**：文件、目录与项目控制接口严格限制在 `$HOME` 范围内，所有输入均经过 `resolve()` + 带斜杠边界校验。
 - **进程安全隔离**：进程停止基于进程组 Token 与 PID 白名单，避免误杀无关的系统任务。
+
+> **安全细节与升级通告**：见 [SECURITY.md](SECURITY.md)。
 
 ### 📄 开源许可证
 

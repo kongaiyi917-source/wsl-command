@@ -11,7 +11,7 @@
 
 <p align="center">
   <a href="https://github.com/kongaiyi917-source/wsl-command/actions/workflows/ci.yml"><img src="https://github.com/kongaiyi917-source/wsl-command/actions/workflows/ci.yml/badge.svg" alt="CI Status" /></a>
-  <a href="https://github.com/kongaiyi917-source/wsl-command/releases"><img src="https://img.shields.io/badge/Release-v0.2.0-blue.svg" alt="Release v0.2.0" /></a>
+  <a href="https://github.com/kongaiyi917-source/wsl-command/releases"><img src="https://img.shields.io/badge/Release-v0.2.1-blue.svg" alt="Release v0.2.1" /></a>
   <img src="https://img.shields.io/badge/Python-3.10+-3776AB.svg?style=flat&logo=python&logoColor=white" alt="Python 3.10+" />
   <img src="https://img.shields.io/badge/WSL2-Ubuntu%20%7C%20Debian-0078D6.svg?style=flat&logo=windows" alt="WSL2" />
   <img src="https://img.shields.io/badge/Dependencies-Zero%20(Standard%20Lib)-success.svg" alt="Zero Dependencies" />
@@ -72,9 +72,12 @@ Open **http://localhost:9600** in your Windows or Linux browser. (Automatically 
 
 ### 🔒 Security Boundary
 
-- **Localhost Only**: Strictly binds to `127.0.0.1`. Never expose to public networks or port-forwarding without authentication.
-- **Path Traversal Guard**: File and directory APIs are strictly confined within `$HOME` with `realpath` boundary checks.
+- **Loopback Only**: Strictly binds to `127.0.0.1`. Never expose to public networks or port-forwarding — even with the built-in token auth, remote exposure is unsupported.
+- **Request-Source Guard**: Every `/api/*` request validates the `Host` header (blocks DNS rebinding); all write endpoints additionally require a startup-generated `X-Auth-Token` plus a local/empty `Origin`.
+- **Path Traversal Guard**: File, directory and project-control APIs are strictly confined within `$HOME` with `resolve()` + trailing-slash boundary checks.
 - **Process Isolation**: Process termination uses exact process group tokens and PID validation to prevent killing unrelated system tasks.
+
+> **Security details & upgrade advisory**: see [SECURITY.md](SECURITY.md).
 
 ### 📄 License
 
