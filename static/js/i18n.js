@@ -131,6 +131,21 @@ const DICT = {
     'labelNotePh': '描述这个项目的用途…',
     'labelClear': '清除标注',
 
+    // 项目详情（进程级启停）
+    'pdOpen': '详情',
+    'pdTitle': '项目详情',
+    'vhDetailSub': '进程级启停 · 自动含义识别 · 逐条备注',
+    'detailBack': '返回',
+    'pdProcs': '进程列表',
+    'pdDesc': '含义 / 备注',
+    'pdNoProcs': '该项目当前没有进程记录，启动后自动出现在这里',
+    'pdNoteModalTitle': '进程备注',
+    'pdNoteCmdLabel': '命令行',
+    'pdNoteLabel': '我的备注',
+    'pdNotePh': '写下这个进程是管什么的…',
+    'pdNoteHint': '备注优先于自动识别，跨会话持久保存',
+    'pdNoteClear': '清除备注',
+
     'settingsTitle': 'WSL 指挥中心设置',
     'setAppearance': '外观主题',
     'setAppearanceHint': '选择控制台界面的配色方案',
@@ -303,6 +318,21 @@ const DICT = {
     'labelNote': 'Notes',
     'labelNotePh': 'Describe what this project does…',
     'labelClear': 'Reset Labels',
+
+    // Project Detail (per-process control)
+    'pdOpen': 'Details',
+    'pdTitle': 'Project Detail',
+    'vhDetailSub': 'Per-process start/stop · Auto descriptions · Individual notes',
+    'detailBack': 'Back',
+    'pdProcs': 'Processes',
+    'pdDesc': 'Meaning / Note',
+    'pdNoProcs': 'No process records for this project yet. They will appear here once started.',
+    'pdNoteModalTitle': 'Process Note',
+    'pdNoteCmdLabel': 'Command',
+    'pdNoteLabel': 'My Note',
+    'pdNotePh': 'Describe what this process does…',
+    'pdNoteHint': 'Notes override auto detection and persist across sessions',
+    'pdNoteClear': 'Clear Note',
 
     'settingsTitle': 'WSL Command Center Settings',
     'setAppearance': 'Theme Appearance',

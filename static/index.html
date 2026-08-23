@@ -335,6 +335,47 @@
             </div>
           </section>
 
+          <!-- ===== 项目详情（点卡片进入，进程级启停） ===== -->
+          <section class="view" id="view-detail" role="tabpanel" aria-labelledby="tab-projects" aria-hidden="true">
+            <div class="detail-wrap">
+              <div class="detail-head panel">
+                <button class="btn detail-back" id="detailBack" type="button">
+                  <span class="ic"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg></span><span data-i18n="detailBack">返回</span>
+                </button>
+                <div class="detail-idbox">
+                  <span class="app-icon detail-icon"><span class="app-icon-letter" id="detailIconLetter">?</span></span>
+                  <div>
+                    <h2 class="detail-name" id="detailName">—</h2>
+                    <div class="detail-path mono" id="detailPath">—</div>
+                  </div>
+                </div>
+                <div class="detail-head-actions">
+                  <button class="btn" id="detailLogs" type="button" data-i18n="viewLogs">日志</button>
+                </div>
+              </div>
+              <div class="detail-stats" id="detailStats"></div>
+              <section class="panel detail-procs-panel">
+                <div class="sec-label"><span data-i18n="pdProcs">进程列表</span><i></i><span class="mono detail-count" id="detailProcCount"></span></div>
+                <div class="tbl detail-tbl" role="table" aria-label="project processes">
+                  <div class="tr th" role="row">
+                    <span class="c-dot" role="columnheader"></span>
+                    <span class="c-title" role="columnheader" data-i18n="colProcess">进程</span>
+                    <span class="c-desc" role="columnheader" data-i18n="pdDesc">含义 / 备注</span>
+                    <span class="c-pid" role="columnheader" data-i18n="colPid">PID</span>
+                    <span class="c-load" role="columnheader" data-i18n="colLoad">负载</span>
+                    <span class="c-mem" role="columnheader" data-i18n="colMem">内存</span>
+                    <span class="c-up" role="columnheader" data-i18n="colUp">启动</span>
+                    <span class="c-act" role="columnheader" data-i18n="colAct">操作</span>
+                  </div>
+                  <div class="tbl-body" id="detailProcList" role="rowgroup"></div>
+                  <div class="empty-state" id="detailEmpty" hidden>
+                    <p data-i18n="pdNoProcs">该项目当前没有进程记录</p>
+                  </div>
+                </div>
+              </section>
+            </div>
+          </section>
+
         </div>
 
         <!-- ===== 实时侧栏 ===== -->
@@ -403,6 +444,32 @@
     <div class="palette-list" id="paletteList" role="listbox" aria-label="可执行命令"></div>
     <div class="palette-foot mono">
       <span data-i18n="paletteSelect">↑↓ 选择</span><span data-i18n="paletteExec">↵ 执行</span><span data-i18n="paletteClose">esc 关闭</span>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 项目标注模态 ===== -->
+<!-- ===== 进程备注模态 ===== -->
+<div class="modal-mask" id="pdNoteMask" aria-hidden="true" inert>
+  <div class="modal modal-sm" role="dialog" aria-modal="true" aria-labelledby="pdNoteTitle">
+    <h3 class="modal-title" id="pdNoteTitle" data-i18n="pdNoteModalTitle">进程备注</h3>
+    <div class="field">
+      <label for="pdNoteCmd" data-i18n="pdNoteCmdLabel">命令行</label>
+      <input id="pdNoteCmd" readonly autocomplete="off" style="font-family:var(--font-mono);font-size:11px">
+    </div>
+    <div class="field">
+      <label for="pdNoteAuto" data-i18n="pdDesc">自动识别</label>
+      <input id="pdNoteAuto" readonly autocomplete="off">
+    </div>
+    <div class="field">
+      <label for="pdNoteInput" data-i18n="pdNoteLabel">我的备注</label>
+      <textarea id="pdNoteInput" rows="3" maxlength="300" data-i18n-placeholder="pdNotePh" placeholder="写下这个进程是管什么的…"></textarea>
+      <p class="hint" data-i18n="pdNoteHint">备注优先于自动识别，跨会话持久保存</p>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" id="pdNoteClear" type="button" data-i18n="pdNoteClear">清除备注</button>
+      <button class="btn" id="pdNoteCancel" type="button" data-i18n="cancel">取消</button>
+      <button class="btn btn-accent" id="pdNoteSave" type="button" data-i18n="save">保存</button>
     </div>
   </div>
 </div>

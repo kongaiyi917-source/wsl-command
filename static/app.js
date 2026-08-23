@@ -15,6 +15,7 @@ import { renderOverview } from './js/overview.js';
 import { renderProjects, projectFilterState } from './js/projects.js';
 import { renderProcesses, processScope } from './js/processes.js';
 import { renderFiles, filesInit, openProjectPath } from './js/files.js';
+import { renderProjectDetail, detailState } from './js/project-detail.js';
 
 const banner = $('#banner');
 const sideNav = $('#sideNav');
@@ -34,6 +35,7 @@ const railHost = $('#railHost');
 const views = {
   overview: $('#view-overview'), projects: $('#view-projects'),
   processes: $('#view-processes'), files: $('#view-files'),
+  detail: $('#view-detail'),
 };
 const sideOverview = $('#sideOverview'), sideProc = $('#sideProc');
 const railBtns = [...document.querySelectorAll('.rail-btn[data-view]')];
@@ -44,12 +46,20 @@ function getViewMeta(v) {
     projects: { title: t('tabProjects'), overline: 'Projects', sub: t('vhProjectsSub') },
     processes: { title: t('tabProcesses'), overline: 'Processes', sub: t('vhProcessesSub') },
     files: { title: t('tabFiles'), overline: 'Files', sub: t('vhFilesSub') },
+    detail: { title: t('pdTitle'), overline: 'Detail', sub: t('vhDetailSub') },
   };
   return metaMap[v] || metaMap.overview;
 }
 
+/* 详情页是否具备进入条件（有选中的项目路径） */
+function detailPathValid() {
+  return !!detailState && !!detailState.path;
+}
+
 function switchView(v) {
   if (state.view === v) return;
+  /* 详情页需要有效 path；丢失时回退到项目页 */
+  if (v === 'detail' && !detailPathValid()) v = 'projects';
   state.view = v;
   localStorage.setItem('console-view', v);
   applyView();
@@ -58,6 +68,7 @@ function switchView(v) {
   void active.offsetWidth;
   active.classList.add('active');
 }
+window.__gotoView = switchView;
 
 function applyView() {
   const v = state.view;
@@ -76,8 +87,19 @@ function applyView() {
   sideOverview.hidden = v === 'processes';
   sideProc.hidden = v !== 'processes';
   for (const [key, el] of Object.entries(views)) {
-    el.classList.toggle('active', key === v);
-    el.setAttribute('aria-hidden', String(key !== v));
+    const on = key === v;
+    el.classList.toggle('active', on);
+    el.setAttribute('aria-hidden', String(!on));
+  }
+  /* 非导航视图（详情）：左侧导航高亮回项目项，标题栏显示项目名 */
+  if (v === 'detail') {
+    for (const b of navBtns) {
+      if (b.dataset.view === 'projects') {
+        b.classList.add('active');
+        b.setAttribute('aria-selected', 'true');
+        b.tabIndex = 0;
+      }
+    }
   }
   const meta = getViewMeta(v);
   setText(viewTitle, meta.title);
@@ -88,6 +110,7 @@ function applyView() {
   else if (v === 'processes') renderProcesses(state.data);
   else if (v === 'files') renderFiles(state.data);
   else if (v === 'overview') renderOverview(state.data);
+  else if (v === 'detail') renderProjectDetail(true);
 }
 
 // 全局视图刷新接口（供语言切换等使用）
@@ -148,6 +171,7 @@ function render() {
   renderProjects(data);
   renderProcesses(data);
   renderFiles(data);
+  renderProjectDetail(data);
   renderWidgets(data);
   firstRender = false;
 }
@@ -440,6 +464,7 @@ function init() {
 
   const stored = localStorage.getItem('console-view');
   state.view = ['overview', 'projects', 'processes', 'files'].includes(stored) ? stored : 'overview';
+  /* 详情视图不跨刷新恢复（path 生命周期短），刷新后回项目页 */
   applyView();
   applyUiTheme(currentUiTheme());
   poll(true);

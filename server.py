@@ -8,6 +8,7 @@ Python 标准库后端（零第三方依赖）。
 运行: python3 server.py   (或 ./start.sh)
 """
 
+import hashlib
 import json
 import os
 import pwd
@@ -103,6 +104,8 @@ DEFAULT_CONFIG = {
     "pins": [],        # [abs_path, ...] 用户置顶的项目路径列表
     "ignores": [],     # 用户额外忽略规则（子串匹配路径组件）
     "theme": "auto",   # auto | light | dark
+    "process_notes": {},    # {proc_key: {"note": str}} 进程手动备注（按 项目路径+命令行 持久化）
+    "process_history": {},  # {project_path: [{key,comm,cmd,cwd,last_seen}]} 项目进程历史（服务端维护）
 }
 
 _config_lock = threading.Lock()
@@ -146,7 +149,8 @@ def load_config():
     try:
         raw = json.loads(CONFIG_PATH.read_text(encoding="utf-8"))
         cfg = dict(DEFAULT_CONFIG)
-        for k in ("labels", "pins", "ignores", "theme"):
+        for k in ("labels", "pins", "ignores", "theme",
+                  "process_notes", "process_history"):
             if k in raw and isinstance(raw[k], type(cfg[k])):
                 cfg[k] = raw[k]
         _config = cfg
@@ -866,6 +870,9 @@ def read_file_preview(path_str: str):
 # ---------------------------------------------------------------- 受控进程（启动/暂停）
 _controlled_lock = threading.Lock()
 _controlled = {}   # path -> {token, pid, pgid, cmd, started_at}
+_proc_ctrl_lock = threading.Lock()
+_proc_controlled = {}   # proc_key -> {token, pid, pgid, cmd, cwd, started_at}（详情页单进程受控记录）
+_history_last_save = 0.0
 
 
 def _pid_alive(pid):
@@ -1114,6 +1121,442 @@ def controlled_pids():
     """当前受控 pid 集合。"""
     with _controlled_lock:
         return {rec["pid"] for rec in _controlled.values()}
+
+
+# ---------------------------------------------------------------- 进程详情：描述引擎 / 历史 / 单进程启停
+
+def _proc_key(path: str, cmd: str) -> str:
+    """进程身份键 = sha1(项目路径 + 命令行)，跨 pid 稳定。"""
+    return hashlib.sha1((path + "\n" + cmd).encode("utf-8", errors="replace")).hexdigest()[:16]
+
+
+def cleanup_proc_controlled():
+    """清理已退出的单进程受控记录。"""
+    with _proc_ctrl_lock:
+        for k, rec in list(_proc_controlled.items()):
+            if not _pid_alive(rec["pid"]):
+                _proc_controlled.pop(k, None)
+
+
+# ① 常见服务/工具词典：comm 或命令首词 -> (中文描述, 英文描述)
+PROC_DICT = {
+    "nginx": ("Web 反向代理", "Web reverse proxy"),
+    "caddy": ("Web 服务器", "Web server"),
+    "apache2": ("Web 服务器", "Web server"),
+    "httpd": ("Web 服务器", "Web server"),
+    "redis-server": ("Redis 缓存数据库", "Redis cache database"),
+    "mysqld": ("MySQL 数据库", "MySQL database"),
+    "mariadbd": ("MariaDB 数据库", "MariaDB database"),
+    "postgres": ("PostgreSQL 数据库", "PostgreSQL database"),
+    "mongod": ("MongoDB 数据库", "MongoDB database"),
+    "clickhouse-server": ("ClickHouse 数据库", "ClickHouse database"),
+    "etcd": ("etcd 配置存储", "etcd config store"),
+    "rabbitmq-server": ("RabbitMQ 消息队列", "RabbitMQ message queue"),
+    "gunicorn": ("Python Web 应用服务", "Python web app server"),
+    "uwsgi": ("Python Web 应用服务", "Python web app server"),
+    "uvicorn": ("Python ASGI 服务", "Python ASGI server"),
+    "celery": ("Celery 异步任务", "Celery task worker"),
+    "dockerd": ("Docker 守护进程", "Docker daemon"),
+    "containerd": ("容器运行时", "Container runtime"),
+    "docker-proxy": ("Docker 端口转发", "Docker port forwarder"),
+    "containerd-shim-runc-v2": ("容器 shim", "Container shim"),
+    "sshd": ("SSH 服务", "SSH server"),
+    "systemd": ("系统服务管理器", "System service manager"),
+    "systemd-journald": ("系统日志服务", "System journal logger"),
+    "wslhost": ("WSL 宿主服务", "WSL host service"),
+    "init": ("系统初始化进程", "System init process"),
+    "bash": ("Shell 终端", "Shell terminal"),
+    "sh": ("Shell 终端", "Shell terminal"),
+    "zsh": ("Shell 终端", "Shell terminal"),
+    "fish": ("Shell 终端", "Shell terminal"),
+    "node": ("Node.js 运行时", "Node.js runtime"),
+    "npm": ("npm 包管理器", "npm package manager"),
+    "pnpm": ("pnpm 包管理器", "pnpm package manager"),
+    "yarn": ("yarn 包管理器", "yarn package manager"),
+    "bun": ("bun 运行时", "bun runtime"),
+    "java": ("Java 运行时", "Java runtime"),
+    "cargo": ("Rust 构建/运行", "Rust build/run"),
+    "rustc": ("Rust 编译器", "Rust compiler"),
+    "go": ("Go 工具链", "Go toolchain"),
+    "make": ("Make 构建", "Make build tool"),
+    "git": ("Git 版本控制", "Git version control"),
+    "docker": ("Docker 命令行", "Docker CLI"),
+    "code": ("VS Code 编辑器", "VS Code editor"),
+    "python": ("Python 解释器", "Python interpreter"),
+    "pip": ("pip 包管理器", "pip package manager"),
+    "ping": ("网络连通性测试", "Network ping tool"),
+    "curl": ("HTTP 请求工具", "HTTP request tool"),
+    "wget": ("下载工具", "Download tool"),
+    "ssh": ("SSH 客户端", "SSH client"),
+    "scp": ("SCP 传输工具", "SCP transfer tool"),
+    "rsync": ("rsync 同步工具", "rsync sync tool"),
+    "tar": ("打包工具", "Archive tool"),
+    "v2ray": ("代理服务", "Proxy service"),
+    "xray": ("代理服务", "Proxy service"),
+    "frpc": ("内网穿透客户端", "Tunnel client (frp)"),
+    "frps": ("内网穿透服务端", "Tunnel server (frp)"),
+    "cloudflared": ("Cloudflare 隧道", "Cloudflare tunnel"),
+    "tailscaled": ("Tailscale 组网", "Tailscale VPN"),
+    # 浏览器与桌面应用
+    "chrome": ("Chrome 浏览器", "Chrome browser"),
+    "chromium": ("Chromium 浏览器", "Chromium browser"),
+    "chromium-browse": ("Chromium 浏览器", "Chromium browser"),
+    "firefox": ("Firefox 浏览器", "Firefox browser"),
+    "msedge": ("Edge 浏览器", "Edge browser"),
+    "chrome_crashpad": ("Chrome 崩溃报告器", "Chrome crash reporter"),
+    "crashpad_handle": ("崩溃报告器", "Crash reporter"),
+    "electron": ("Electron 桌面应用", "Electron desktop app"),
+    "agent-browser": ("浏览器自动化工具", "Browser automation tool"),
+    "code": ("VS Code 编辑器", "VS Code editor"),
+    # 常用终端工具
+    "htop": ("系统监控面板", "System monitor"),
+    "btop": ("系统监控面板", "System monitor"),
+    "vim": ("文本编辑器", "Text editor"),
+    "nvim": ("Neovim 编辑器", "Neovim editor"),
+    "nano": ("文本编辑器", "Text editor"),
+    "redis-cli": ("Redis 命令行客户端", "Redis CLI client"),
+    "mysql": ("MySQL 命令行客户端", "MySQL CLI client"),
+    "psql": ("PostgreSQL 客户端", "PostgreSQL client"),
+    "sqlite3": ("SQLite 数据库工具", "SQLite database tool"),
+    "jupyter": ("Jupyter 笔记本", "Jupyter notebook"),
+    "streamlit": ("Streamlit Web 应用", "Streamlit web app"),
+    "uvx": ("Python 工具运行器", "Python tool runner (uv)"),
+    "pip3": ("pip 包管理器", "pip package manager"),
+}
+
+# ①b 前缀兜底：进程名带版本/平台后缀变体时（如 agent-browser-linux）也能命中
+PROC_PREFIX_DICT = [
+    ("agent-browser", ("浏览器自动化工具", "Browser automation tool")),
+    ("code-wrapper", ("VS Code 编辑器", "VS Code editor")),
+]
+
+# ② 运行时 -> 描述模板（对 cmd 第二个词做脚本名解析）
+RUNTIME_DICT = {
+    "python": ("Python 脚本 · {arg}", "Python script · {arg}"),
+    "python3": ("Python 脚本 · {arg}", "Python script · {arg}"),
+    "node": ("Node.js 程序 · {arg}", "Node.js program · {arg}"),
+    "deno": ("Deno 程序 · {arg}", "Deno program · {arg}"),
+    "bash": ("Shell 脚本 · {arg}", "Shell script · {arg}"),
+    "sh": ("Shell 脚本 · {arg}", "Shell script · {arg}"),
+    "java": ("Java 程序 · {arg}", "Java program · {arg}"),
+}
+
+
+# Shell 家族（-c 后首词即命令本体）
+SHELL_NAMES = {"bash", "sh", "zsh", "dash", "ksh"}
+
+
+def describe_process(p):
+    """三层规则引擎：词典 -> 运行时解析 -> 容器特征。返回 (zh, en)。全自动零配置。"""
+    comm = (p.get("comm") or "").strip().lower()
+    cmd = (p.get("cmd") or "").strip()
+    parts = cmd.split() if cmd else []
+    first = parts[0].rstrip(" :").split("/")[-1].lower() if parts else ""
+    if first.endswith(":"):
+        first = first[:-1]
+    is_shell = first in SHELL_NAMES or comm in SHELL_NAMES
+
+    # ① 词典（先查完整 comm，再查命令首词）
+    for cand in (comm, first):
+        if cand and cand in PROC_DICT:
+            arg = _runtime_arg(parts, is_shell)
+            if cand in RUNTIME_DICT and arg:
+                tzh, ten = RUNTIME_DICT[cand]
+                return tzh.format(arg=arg), ten.format(arg=arg)
+            zh, en = PROC_DICT[cand]
+            return zh, en
+
+    # ①b 前缀兜底
+    for cand in (comm, first):
+        if not cand:
+            continue
+        for pref, val in PROC_PREFIX_DICT:
+            if cand.startswith(pref):
+                return val
+
+    # ② 运行时 + 入口解析
+    if first in RUNTIME_DICT:
+        arg = _runtime_arg(parts, is_shell)
+        if arg:
+            tzh, ten = RUNTIME_DICT[first]
+            return tzh.format(arg=arg), ten.format(arg=arg)
+        tzh, ten = PROC_DICT.get(first, RUNTIME_DICT[first])
+        return tzh, ten
+    if first in ("npm", "pnpm", "yarn"):
+        sub = parts[1] if len(parts) > 1 else ""
+        if sub == "run" and len(parts) > 2:
+            sub = parts[2]
+        label = (first + " " + sub).strip()
+        return f"Node.js 服务 · {label}", f"Node.js service · {label}"
+
+    # ③ 容器特征
+    container = p.get("container")
+    if container:
+        return f"容器进程 · {container}", f"Container process · {container}"
+
+    # 兜底：未知
+    return "", ""
+
+
+def _runtime_arg(parts, is_shell=False):
+    """从命令行参数中提取入口文件名。
+    shell -c 形式：取 -c 后首词作命令本体；
+    python/node 的 -c 是内联代码串，跳过继续找真正的文件参数。"""
+    if is_shell and len(parts) > 2 and parts[1] == "-c":
+        base = parts[2].rstrip("/").split("/")[-1]
+        return base or None
+    skip_val = False
+    for a in parts[1:]:
+        if skip_val:
+            skip_val = False
+            continue
+        if a == "-c":          # 内联代码串，不是入口名
+            skip_val = True
+            continue
+        if a.startswith("-"):
+            continue
+        base = a.rstrip("/").split("/")[-1]
+        return base or None
+    return None
+
+
+_SHELL_WRAP_RE = re.compile(r"^(?:/usr/bin/|/bin/)?(?:ba|z|da|k)?sh\s+-c\s+(.+)$", re.S)
+
+
+def _strip_shell_wrap(cmd):
+    """剥掉 wrapper：/proc 抓到的 'bash -c xxx' 展平串失去引号边界，
+    直接重放会改变语义（如 sh -c sleep 300 → sleep 丢失参数）。剥壳后取真实命令串。"""
+    m = _SHELL_WRAP_RE.match((cmd or "").strip())
+    if m:
+        return m.group(1).strip()
+    return (cmd or "").strip()
+
+
+def _upsert_process_history(path_str, procs, ctrl_origin=None):
+    """把该项目当前活进程合并进历史（config.process_history），变化时节流写盘。
+    规则：活着的保留；曾存活 ≥5s 的长驻进程永久留档；
+    短命且已退出超过 60s 的噪音条目自动清除。
+    ctrl_origin: {pid: 原始命令}，受控启动的进程记录原始命令供复活使用。"""
+    global _history_last_save
+    try:
+        with _config_lock:
+            hist = _config.setdefault("process_history", {})
+            entries = hist.setdefault(path_str, [])
+            now = time.time()
+            changed = False
+            by_key = {}
+            for e in entries:
+                if isinstance(e, dict):
+                    by_key[e["key"]] = e
+            live_keys = set()
+            ctrl_origin = ctrl_origin or {}
+            for p in procs:
+                cmd = (p.get("cmd") or "").strip()
+                if not cmd:
+                    continue
+                k = _proc_key(path_str, cmd)
+                live_keys.add(k)
+                e = by_key.get(k)
+                if e is None:
+                    e = {"key": k, "comm": p.get("comm", ""), "cmd": cmd,
+                         "cwd": p.get("cwd") or path_str,
+                         "first_seen": now, "last_seen": now}
+                    entries.append(e)
+                    by_key[k] = e
+                    changed = True
+                elif now - e.get("last_seen", 0) > 60:
+                    e["last_seen"] = now
+                    changed = True
+                if p.get("cwd") and not e.get("cwd"):
+                    e["cwd"] = p["cwd"]
+                    changed = True
+                oc = ctrl_origin.get(p.get("pid"))
+                if oc and e.get("origin_cmd") != oc:
+                    e["origin_cmd"] = oc
+                    changed = True
+            # 噪音清理：非活趧 + 短命（<5s）+ 已死超 60s → 移除
+            kept = []
+            for e in entries:
+                if not isinstance(e, dict):
+                    continue
+                if e["key"] in live_keys:
+                    kept.append(e)
+                    continue
+                lifespan = e.get("last_seen", 0) - e.get("first_seen", 0)
+                gone_for = now - e.get("last_seen", 0)
+                if lifespan >= 5 or gone_for <= 60:
+                    kept.append(e)
+                else:
+                    changed = True
+            if len(kept) != len(entries):
+                entries[:] = kept
+            # 每项目最多保留 20 条（按 last_seen 新者优先）
+            if len(entries) > 20:
+                entries[:] = sorted(entries, key=lambda x: x.get("last_seen", 0), reverse=True)[:20]
+                changed = True
+        if changed and time.time() - _history_last_save > 5:
+            _history_last_save = time.time()
+            save_config()
+    except Exception as e:
+        log("进程历史维护失败: %s" % e)
+
+
+def project_detail_payload(path_str):
+    """项目详情页数据：项目信息 + 活进程（含描述/备注/父子关系）+ 已停止历史。"""
+    projs = {p["path"]: p for p in build_projects()[0]}
+    pj = projs.get(path_str)
+    proj_name = Path(path_str).name
+    procs = snapshot_processes(force=True)
+    mine = [p for p in procs if p.get("project") == proj_name]
+    # 受控 pid -> 原始命令（供历史条目记录 origin_cmd，复活时不失真）
+    with _controlled_lock:
+        main_ctrl_pid = (_controlled.get(path_str) or {}).get("pid")
+        main_ctrl_cmd = (_controlled.get(path_str) or {}).get("cmd")
+    ctrl_origin = {}
+    if main_ctrl_pid and main_ctrl_cmd:
+        ctrl_origin[main_ctrl_pid] = main_ctrl_cmd
+    with _proc_ctrl_lock:
+        for rec in _proc_controlled.values():
+            if rec.get("pid") and rec.get("cmd"):
+                ctrl_origin[rec["pid"]] = rec["cmd"]
+    _upsert_process_history(path_str, mine, ctrl_origin)
+    cleanup_proc_controlled()
+    notes = _config.get("process_notes", {})
+    hist = _config.get("process_history", {}).get(path_str, [])
+    live_keys, out_live, pmap = set(), [], {}
+    for p in mine:
+        cmd = (p.get("cmd") or "").strip() or p.get("comm", "")
+        k = _proc_key(path_str, cmd)
+        live_keys.add(k)
+        dzh, den = describe_process(p)
+        with _proc_ctrl_lock:
+            rec = _proc_controlled.get(k)
+        managed = bool(rec and _pid_alive(rec["pid"])) or p["pid"] == main_ctrl_pid
+        d = {kk: p.get(kk) for kk in ("pid", "ppid", "comm", "state", "cpu",
+                                      "rss", "started", "cwd", "user",
+                                      "container", "ports")}
+        d.update({"cmd": cmd, "key": k, "alive": True,
+                  "desc_zh": dzh, "desc_en": den,
+                  "note": (notes.get(k) or {}).get("note", ""),
+                  "managed": managed})
+        out_live.append(d)
+        pmap[p["pid"]] = d
+    # 父子关系标注（父进程也在本项目列表内时）
+    for d in out_live:
+        par = pmap.get(d["ppid"])
+        if par is not None:
+            d["parent_pid"] = par["pid"]
+            d["parent_comm"] = par["comm"]
+    out_live.sort(key=lambda x: (-x["cpu"], x["pid"]))
+    # 历史（已停止）：不在活集合里的才显示，最多 20 条
+    out_hist = []
+    for e in sorted(hist, key=lambda x: x.get("last_seen", 0), reverse=True)[:20]:
+        if not isinstance(e, dict) or e.get("key") in live_keys:
+            continue
+        dzh, den = describe_process({"comm": e.get("comm", ""), "cmd": e.get("cmd", "")})
+        out_hist.append({"key": e["key"], "comm": e.get("comm", ""),
+                         "cmd": e.get("cmd", ""), "cwd": e.get("cwd") or "",
+                         "last_seen": e.get("last_seen", 0), "alive": False,
+                         "cpu": 0, "rss": 0, "pid": None, "ppid": None,
+                         "started": None, "user": "", "container": None, "ports": [],
+                         "desc_zh": dzh, "desc_en": den,
+                         "note": (notes.get(e["key"]) or {}).get("note", ""),
+                         "managed": False})
+    return {"project": pj, "procs": out_live, "history": out_hist, "ts": time.time()}
+
+
+def stop_process(path_str, pid):
+    """停止单个进程及其子进程树（限本项目内），SIGTERM 优雅退出后升级 SIGKILL。"""
+    proj_name = Path(path_str).name
+    procs = snapshot_processes(force=True)
+    targets_map = {p["pid"]: p for p in procs if p.get("project") == proj_name}
+    if pid not in targets_map:
+        return False, {"error": "该进程不属于此项目或已退出"}
+    root = targets_map[pid]
+    children = {pid}
+    changed = True
+    while changed:
+        changed = False
+        for p_pid, pp in targets_map.items():
+            if pp["ppid"] in children and p_pid not in children:
+                children.add(p_pid)
+                changed = True
+    pids = sorted(children)
+    containers = sorted({targets_map[x].get("container") for x in pids
+                         if targets_map[x].get("container")} - {None})
+    for cname in containers:
+        log("停止容器 %s" % cname)
+        try:
+            subprocess.run(["docker", "stop", "--time", "5", cname],
+                           capture_output=True, text=True, timeout=30)
+        except (OSError, subprocess.TimeoutExpired):
+            pass
+    log("停止单进程 %s 树: %s" % (proj_name, pids))
+    for x in pids:
+        try:
+            os.kill(x, signal.SIGTERM)
+        except OSError:
+            pass
+    alive = pids
+    for _ in range(6):
+        alive = [x for x in alive if _pid_alive(x)]
+        if not alive:
+            break
+        time.sleep(0.5)
+    for x in alive:
+        try:
+            os.kill(x, signal.SIGKILL)
+        except OSError:
+            pass
+    with _proc_ctrl_lock:
+        _proc_controlled.pop(_proc_key(path_str, (root.get("cmd") or "").strip()), None)
+    return True, {"stopped": len(pids), "pids": pids}
+
+
+def start_process(path_str, key):
+    """按历史记录原样复活一个进程（受控启动，日志进项目日志）。"""
+    if not _home_path_ok(path_str):
+        return False, {"error": "非法路径"}
+    hist = _config.get("process_history", {}).get(path_str, [])
+    entry = next((e for e in hist if isinstance(e, dict) and e.get("key") == key), None)
+    if not entry:
+        return False, {"error": "找不到该进程的历史记录"}
+    # 优先用受控时记录的原始命令；否则对 /proc 展平串剥壳还原
+    cmd = (entry.get("origin_cmd") or _strip_shell_wrap(entry.get("cmd")) or "").strip()
+    if not cmd:
+        return False, {"error": "历史记录缺少启动命令"}
+    with _proc_ctrl_lock:
+        rec = _proc_controlled.get(key)
+        if rec and _pid_alive(rec["pid"]):
+            return True, {"already": True, "pid": rec["pid"]}
+    cwd = entry.get("cwd") or path_str
+    if not os.path.isdir(cwd):
+        cwd = path_str
+    logf = project_log_path(path_str)
+    try:
+        LOG_DIR.mkdir(parents=True, exist_ok=True)
+        with open(logf, "ab") as f:
+            f.write(("\n===== %s 启动单进程: %s =====\n" % (
+                datetime.now().strftime("%Y-%m-%d %H:%M:%S"), cmd)).encode())
+        stdout = open(logf, "ab")
+        proc = subprocess.Popen(cmd, shell=True, cwd=cwd,
+                                stdout=stdout, stderr=subprocess.STDOUT,
+                                start_new_session=True, env=launch_env())
+    except OSError as e:
+        return False, {"error": "启动失败: %s" % e}
+    rec = {"token": uuid.uuid4().hex, "pid": proc.pid, "pgid": proc.pid,
+           "cmd": cmd, "cwd": cwd, "started_at": time.time()}
+    try:
+        with _proc_ctrl_lock:
+            _proc_controlled[key] = rec
+    except Exception:
+        try:
+            os.killpg(proc.pid, signal.SIGKILL)
+        except OSError:
+            pass
+        raise
+    log("受控启动单进程 %s: %s (pid=%d)" % (Path(path_str).name, cmd, proc.pid))
+    return True, {"pid": proc.pid, "cmd": cmd}
 
 
 # ---------------------------------------------------------------- 状态组装
@@ -1375,6 +1818,13 @@ class Handler(BaseHTTPRequestHandler):
                         "ignores": _config["ignores"], "theme": _config["theme"],
                         "data_dir": str(CONFIG_DIR), "home": str(HOME),
                         "version": VERSION})
+        elif name == "project/procs":
+            raw = qs.get("path", [""])[0]
+            p = self._safe_path(raw)
+            if not p:
+                self._json({"error": "invalid path"}, 400)
+                return
+            self._json(project_detail_payload(str(p)))
         elif name == "logs":
             self._json({"logs": tail_log(80)})
         elif name == "projects/logs":
@@ -1427,6 +1877,8 @@ class Handler(BaseHTTPRequestHandler):
             self._project_control("stop-all")
         elif parsed.path in ("/api/docker/start", "/api/docker/stop"):
             self._docker_control(parsed.path.endswith("/start"))
+        elif parsed.path in ("/api/process/start", "/api/process/stop"):
+            self._process_control(parsed.path.rsplit("/", 1)[-1])
         else:
             self._send(404, b"not found", "text/plain; charset=utf-8")
 
@@ -1477,6 +1929,34 @@ class Handler(BaseHTTPRequestHandler):
             ok, info = stop_project_all(path)
         self._json({"ok": ok, **info})
 
+    def _process_control(self, action):
+        """详情页单进程启停：start 按 key 复活历史进程；stop 按 pid 杀进程树。"""
+        try:
+            n = int(self.headers.get("Content-Length", "0"))
+            data = json.loads(self.rfile.read(n).decode("utf-8")) if n else {}
+        except (ValueError, UnicodeDecodeError):
+            self._json({"error": "bad json"}, 400)
+            return
+        p = self._safe_path(str(data.get("path", "")))
+        if p is None:
+            self._json({"error": "invalid path"}, 400)
+            return
+        path = str(p)
+        if action == "start":
+            key = str(data.get("key", ""))
+            if not re.fullmatch(r"[0-9a-f]{16}", key):
+                self._json({"error": "invalid key"}, 400)
+                return
+            ok, info = start_process(path, key)
+        else:
+            try:
+                pid = int(data.get("pid", 0))
+            except (ValueError, TypeError):
+                self._json({"error": "invalid pid"}, 400)
+                return
+            ok, info = stop_process(path, pid)
+        self._json({"ok": ok, **info})
+
     def _post_config(self):
         try:
             n = int(self.headers.get("Content-Length", "0"))
@@ -1498,6 +1978,16 @@ class Handler(BaseHTTPRequestHandler):
                         }
                     else:
                         _config["labels"].pop(k, None)
+            if "process_notes" in data and isinstance(data["process_notes"], dict):
+                pn = _config.setdefault("process_notes", {})
+                for k, v in data["process_notes"].items():
+                    if not re.fullmatch(r"[0-9a-f]{16}", str(k)):
+                        continue
+                    note = str((v or {}).get("note", "")).strip()[:300] if isinstance(v, dict) else ""
+                    if note:
+                        pn[str(k)] = {"note": note}
+                    else:
+                        pn.pop(str(k), None)
             if "pins" in data and isinstance(data["pins"], list):
                 _config["pins"] = [x for x in data["pins"]
                                     if self._safe_path(str(x)) is not None]

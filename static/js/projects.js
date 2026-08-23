@@ -8,6 +8,7 @@ import { t, getLang } from './i18n.js';
 import { openConfirm } from './overlays.js';
 import { fmtSize } from './overview.js';
 import { startProject, stopProject, openProjectLogs, stopProjectAll, isProjectBusy } from './control.js';
+import { openProjectDetail, detailInit } from './project-detail.js';
 
 const projGrid = $('#projGrid');
 
@@ -46,7 +47,7 @@ function createCard() {
   bEdit.type = 'button';
   bEdit.title = t('edit');
   bEdit.setAttribute('aria-label', t('edit'));
-  setChildren(bEdit, icon('pencil', 14), document.createTextNode(t('edit')));
+  bEdit.appendChild(icon('pencil', 15));
   const sub = el('div', 'app-sub-actions');
   const bCopy = el('button', 'ibtn');
   bCopy.type = 'button';
@@ -59,11 +60,16 @@ function createCard() {
   bLogs.setAttribute('aria-label', t('viewLogs'));
   bLogs.appendChild(icon('file-text', 15));
   bLogs.hidden = true;
-  sub.append(bCopy, bLogs);
+  const bDetail = el('button', 'ibtn b-detail');
+  bDetail.type = 'button';
+  bDetail.title = t('pdOpen');
+  bDetail.setAttribute('aria-label', t('pdOpen'));
+  bDetail.appendChild(icon('activity', 15));
+  sub.append(bCopy, bLogs, bDetail);
   actions.append(primary, bEdit, sub);
 
   card.append(bPin, head, cmd, actions);
-  card._r = { iconTxt, name, status, dot, stText, stUp, cmd, primary, bEdit, bPin, bCopy, bLogs };
+  card._r = { iconTxt, name, status, dot, stText, stUp, cmd, primary, bEdit, bPin, bCopy, bLogs, bDetail };
   return card;
 }
 
@@ -164,7 +170,9 @@ function updateCard(card, p) {
     setPrimary('play', t('start'), 'btn-accent', () => startProject(p.path, p.name));
   }
   r.bEdit.onclick = () => openLabelModal(p.path);
-  setChildren(r.bEdit, icon('pencil', 14), document.createTextNode(t('edit')));
+  r.bEdit.replaceChildren(icon('pencil', 15));
+  r.bEdit.title = t('edit');
+  r.bEdit.setAttribute('aria-label', t('edit'));
   r.bPin.onclick = () => togglePin(p.path, p.pinned);
   r.bPin.classList.toggle('active', !!p.pinned);
   r.bPin.title = p.pinned ? t('unpin') : t('pin');
@@ -176,6 +184,9 @@ function updateCard(card, p) {
   r.bLogs.setAttribute('aria-label', t('viewLogs'));
   r.bLogs.hidden = !ctrlRunning && !p.cmd;
   r.bLogs.onclick = () => openProjectLogs(p.path);
+  r.bDetail.title = t('pdOpen');
+  r.bDetail.setAttribute('aria-label', t('pdOpen'));
+  r.bDetail.onclick = () => { detailInit(); openProjectDetail(p.path, card); };
 
   card.classList.toggle('running', ctrlRunning || running > 0);
   card.classList.toggle('pinned', !!p.pinned);

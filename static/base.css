@@ -1150,3 +1150,179 @@
 }
 .hidden-toggle input { accent-color: var(--accent); cursor: pointer; }
 .files-side .sec-label .filter-row { margin-left: 8px; }
+
+/* ============================================================
+   项目详情视图（进程级启停）+ 卡片 3D 翻转转场
+   ============================================================ */
+
+/* ---------- 卡片翻转转场 ---------- */
+@keyframes cardFlipOut {
+  from { transform: perspective(1200px) rotateY(0); opacity: 1; }
+  to   { transform: perspective(1200px) rotateY(-88deg); opacity: 0.35; }
+}
+@keyframes cardFlipIn {
+  from { transform: perspective(1200px) rotateY(88deg); opacity: 0.35; }
+  to   { transform: perspective(1200px) rotateY(0); opacity: 1; }
+}
+.app-card.flip-out { animation: cardFlipOut 380ms cubic-bezier(.45,.05,.55,.95) forwards; pointer-events: none; }
+.app-card.flip-in  { animation: cardFlipIn 420ms cubic-bezier(.2,.7,.3,1) backwards; transform-origin: center; }
+@keyframes viewFlipEnter {
+  from { transform: perspective(1400px) rotateY(14deg); opacity: 0.25; }
+  to   { transform: perspective(1400px) rotateY(0); opacity: 1; }
+}
+@keyframes viewFlipExit {
+  from { transform: perspective(1400px) rotateY(0); opacity: 1; }
+  to   { transform: perspective(1400px) rotateY(10deg); opacity: 0.25; }
+}
+#view-detail.flip-view-out-enter > .detail-wrap { animation: viewFlipEnter 400ms cubic-bezier(.2,.7,.3,1); }
+#view-detail.flip-view-exit > .detail-wrap { animation: viewFlipExit 340ms ease-in forwards; pointer-events: none; }
+@media (prefers-reduced-motion: reduce) {
+  .app-card.flip-out, .app-card.flip-in,
+  #view-detail.flip-view-out-enter > .detail-wrap,
+  #view-detail.flip-view-exit > .detail-wrap { animation: none; }
+}
+
+/* ---------- 详情页布局 ---------- */
+.detail-wrap {
+  display: flex; flex-direction: column; gap: 14px;
+  min-width: 0;
+}
+.detail-head {
+  display: flex; align-items: center; gap: 16px;
+  padding: 14px 18px;
+}
+.detail-back { flex: none; }
+.detail-idbox { display: flex; align-items: center; gap: 12px; min-width: 0; flex: 1; }
+.detail-icon { width: 40px; height: 40px; font-size: 17px; flex: none; }
+.detail-name {
+  margin: 0; font-size: 19px; font-weight: 700; color: var(--ink);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.detail-path {
+  font-size: 11px; color: var(--ink-3);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.detail-head-actions { flex: none; display: flex; gap: 8px; }
+
+/* 信息头统计条 */
+.detail-stats {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px;
+}
+.dstat {
+  display: flex; flex-direction: column; gap: 3px;
+  padding: 10px 14px;
+  background: var(--card, rgba(255,255,255,0.03));
+  border: 1px solid var(--line); border-radius: 10px;
+  min-width: 0;
+}
+.dstat-label { font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-3); }
+.dstat-value {
+  font-size: 12px; color: var(--ink);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+/* 进程表面板 */
+.detail-procs-panel { padding: 14px 18px 16px; }
+.detail-count { margin-left: auto; font-size: 11px; color: var(--ink-3); }
+.tbl.detail-tbl .tr {
+  grid-template-columns: 22px minmax(160px, 1.6fr) minmax(150px, 1.2fr)
+    56px 92px 64px 60px 128px;
+}
+.c-desc {
+  display: flex; align-items: center; gap: 6px; min-width: 0;
+  font-size: 11.5px; color: var(--ink-2);
+}
+.desc-text {
+  display: inline-flex; align-items: center; gap: 6px;
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.auto-desc { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.auto-desc.unknown { color: var(--ink-3); font-style: italic; }
+.note-chip {
+  display: inline-block; max-width: 100%;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  padding: 2px 8px; border-radius: 99px;
+  font-size: 11px; color: var(--ink);
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+.mini-badge {
+  flex: none;
+  display: inline-flex; align-items: center;
+  padding: 1px 6px; margin-left: 6px; border-radius: 99px;
+  font-family: var(--font-mono); font-size: 9px; font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--accent);
+  border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+.ibtn-inline { opacity: 0.65; flex: none; }
+.tr:hover .ibtn-inline { opacity: 1; }
+
+/* 已停止（历史）行 */
+.tr.stopped-row { opacity: 0.62; }
+.tr.stopped-row .c-cmd { color: var(--ink-3); }
+.tr.stopped-row .status-dot.running { background: var(--line-2); box-shadow: none; }
+
+.btn-sm { height: 28px; padding: 0 12px; font-size: 11px; gap: 5px; }
+
+/* 详情表响应式 */
+@media (max-width: 1400px) {
+  .tbl.detail-tbl .tr {
+    grid-template-columns: 22px minmax(140px, 1.4fr) minmax(130px, 1fr)
+      52px 80px 58px 56px 118px;
+  }
+}
+@media (max-width: 900px) {
+  .tbl.detail-tbl .tr { grid-template-columns: 18px minmax(0, 1fr) auto auto; }
+  .tbl.detail-tbl .c-desc, .tbl.detail-tbl .c-load,
+  .tbl.detail-tbl .th .c-pid, .tbl.detail-tbl .th .c-mem { display: none !important; }
+}
+
+/* ---------- 详情页进程树形缩进 ---------- */
+.tbl.detail-tbl .tree-pad {
+  display: inline-block; flex: none;
+}
+.tbl.detail-tbl .tree-guide {
+  display: inline-block; flex: none;
+  font-family: var(--font-mono); font-style: normal;
+  color: var(--ink-4); margin-right: 5px;
+  user-select: none;
+}
+
+/* ---------- 卡片操作栏收紧：详情按钮加入后防溢出 ---------- */
+.app-card .app-actions { flex-wrap: wrap; }        /* 兕底：极端窄卡时换行而非出界 */
+.app-card .app-actions { gap: 6px; }
+.app-card .app-sub-actions { gap: 6px; }
+.app-card .ibtn { width: 31px; height: 31px; }
+.app-card .b-edit { width: 31px; padding: 0; }      /* 修改 = 纯图标 */
+.app-card .app-primary { padding: 0 12px; }
+
+/* ---------- 树形增强：CSS L 形连线 + 子行背景色块 ---------- */
+.tbl.detail-tbl .tree-guide {
+  display: inline-block;
+  width: 12px;
+  height: 14px;
+  border-left: 2px solid color-mix(in srgb, var(--accent) 55%, var(--ink-4));
+  border-bottom: 2px solid color-mix(in srgb, var(--accent) 55%, var(--ink-4));
+  border-bottom-left-radius: 4px;
+  margin: 0 7px 3px 0;
+  vertical-align: middle;
+  flex: none;
+}
+.tbl.detail-tbl .tree-child {
+  background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 6%, transparent) 0%, color-mix(in srgb, var(--accent) 2%, transparent) 40%, transparent 80%);
+}
+
+/* ---------- 树形增强：提高对比度 ---------- */
+.tbl.detail-tbl .tree-guide {
+  width: 13px;
+  height: 15px;
+  border-left: 2px solid var(--accent);
+  border-bottom: 2px solid var(--accent);
+  border-bottom-left-radius: 4px;
+}
+.tbl.detail-tbl .tree-child {
+  background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 11%, transparent) 0%, color-mix(in srgb, var(--accent) 3%, transparent) 50%, transparent 85%);
+}
