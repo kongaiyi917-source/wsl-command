@@ -202,8 +202,18 @@ export function toast(msg, duration = 3200) {
 
 /* ---------------- 浮层焦点管理 ---------------- */
 const layerReturnFocus = new WeakMap();
-/* 浮层（含日志抽屉）都在 .shell 之外；打开时把背景置 inert，
-   读屏与 Tab 都无法触达背景内容，符合 APG 对话框模式。 */
+const MODAL_LAYER_IDS = ['#confirmMask', '#labelMask', '#paletteMask',
+  '#logsMask', '#settingsMask', '#mkdirMask', '#trashMask'];
+
+function hasActiveModalLayer() {
+  for (const id of MODAL_LAYER_IDS) {
+    const layer = $(id);
+    if (layer && layer.classList.contains('open')) return true;
+  }
+  return false;
+}
+
+/* 模态弹窗打开时把背景置 inert，抽屉（侧边栏）不阻断主区域交互 */
 function setShellInert(value) {
   const shell = document.querySelector('.shell');
   if (shell) shell.inert = value;
@@ -213,7 +223,10 @@ export function openLayer(layer, focusTarget) {
   layer.inert = false;
   layer.setAttribute('aria-hidden', 'false');
   layer.classList.add('open');
-  setShellInert(true);
+  const isDrawer = layer.id === 'logDrawer' || layer.classList.contains('drawer');
+  if (!isDrawer) {
+    setShellInert(true);
+  }
   setTimeout(() => {
     const target = typeof focusTarget === 'function' ? focusTarget() : focusTarget;
     if (target) target.focus();
@@ -226,11 +239,11 @@ export function closeLayer(layer) {
   layer.inert = true;
   const target = layerReturnFocus.get(layer);
   layerReturnFocus.delete(layer);
-  if (!activeLayer()) setShellInert(false);
+  if (!hasActiveModalLayer()) setShellInert(false);
   if (target && target.isConnected) setTimeout(() => target.focus(), 0);
 }
 const LAYER_IDS = ['#confirmMask', '#labelMask', '#paletteMask', '#logDrawer',
-  '#logsMask', '#settingsMask'];
+  '#logsMask', '#settingsMask', '#mkdirMask', '#trashMask'];
 export function activeLayer() {
   for (const id of LAYER_IDS) {
     const layer = $(id);
@@ -241,6 +254,8 @@ export function activeLayer() {
 export function trapLayerFocus(e) {
   const layer = activeLayer();
   if (!layer || e.key !== 'Tab') return;
+  const isDrawer = layer.id === 'logDrawer' || layer.classList.contains('drawer');
+  if (isDrawer) return; /* 抽屉允许自由聚焦到列表等外部元素 */
   const nodes = [...layer.querySelectorAll(
     'button:not([disabled]), input:not([disabled]), textarea:not([disabled]), select:not([disabled]), [href], [tabindex]:not([tabindex="-1"])')]
     .filter(node => !node.hidden && node.offsetParent !== null);

@@ -11,6 +11,24 @@
 <link rel="preload" href="/fonts/GeistMono-Variable.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="/themes/wsl.css" id="themeCss">
 <link rel="stylesheet" href="/base.css">
+<style>/* 遮罩穿透双保险（内联，随 HTML 更新，免疫 CSS 缓存） */
+.drawer-mask.open { pointer-events: none !important; }
+/* 加载错误自显条 */
+#bootErrorBar { display: none; position: fixed; top: 0; left: 0; right: 0; z-index: 99999; background: #7f1d1d; color: #fff; font: 12px/1.5 monospace; padding: 10px 16px; white-space: pre-wrap; }
+</style>
+<script>
+/* 启动错误自显：任何未捕获错误显示在页面顶部红条 */
+(function () {
+  function show(err) {
+    var bar = document.getElementById('bootErrorBar');
+    if (!bar) { bar = document.createElement('div'); bar.id = 'bootErrorBar'; document.body.appendChild(bar); }
+    bar.style.display = 'block';
+    bar.textContent = '⚠ 页面加载错误: ' + (err && (err.stack || err.message) || err);
+  }
+  window.addEventListener('error', function (e) { if (e.message) show(e.message + (e.filename ? ' @ ' + e.filename + ':' + e.lineno : '')); });
+  window.addEventListener('unhandledrejection', function (e) { show((e.reason && (e.reason.stack || e.reason.message)) || e.reason); });
+})();
+</script>
 </head>
 <body>
 
@@ -317,7 +335,16 @@
                 <div class="tree-list" id="fileTree" role="tree" aria-label="项目目录树"></div>
               </section>
               <section class="panel files-main">
-                <div class="crumbs mono" id="fileCrumbs"></div>
+                <div class="files-toolbar">
+                  <div class="crumbs mono" id="fileCrumbs"></div>
+                  <div class="files-tools">
+                    <span class="upload-status mono" id="uploadStatus"></span>
+                    <button class="btn btn-sm" id="mkdirBtn" type="button" data-i18n="newFolder">新建文件夹</button>
+                    <button class="btn btn-sm" id="uploadBtn" type="button" data-i18n="upload">上传</button>
+                    <input type="file" id="uploadInput" multiple hidden>
+                    <button class="btn btn-sm" id="trashBtn" type="button" data-i18n="trashTitle">回收站</button>
+                  </div>
+                </div>
                 <div class="tbl files-tbl" role="table" aria-label="文件列表">
                   <div class="tr th" role="row">
                     <span class="c-title" role="columnheader" data-i18n="colName">名称</span>
@@ -375,6 +402,13 @@
               </section>
             </div>
           </section>
+
+          <!-- ===== 拖拽上传遮罩 ===== -->
+          <div class="drop-mask" id="dropMask" hidden style="display:none" aria-hidden="true">
+            <div class="drop-hint"><span class="drop-ic">⬆</span>
+              <p id="dropHintText" data-i18n="dropHint">松开鼠标，上传到当前目录</p>
+            </div>
+          </div>
 
         </div>
 
@@ -515,6 +549,33 @@
     <div class="modal-actions">
       <button class="btn" id="confirmCancel" type="button" data-i18n="cancel">取消</button>
       <button class="btn btn-stop" id="confirmOk" type="button" data-i18n="confirm">确认</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 新建文件夹 ===== -->
+<div class="modal-mask" id="mkdirMask" aria-hidden="true" inert>
+  <div class="modal modal-sm" role="dialog" aria-modal="true" aria-labelledby="mkdirMaskTitle">
+    <h3 class="modal-title" id="mkdirMaskTitle" data-i18n="newFolder">新建文件夹</h3>
+    <div class="field">
+      <label for="mkdirInput" data-i18n="folderName">文件夹名称</label>
+      <input id="mkdirInput" maxlength="120" autocomplete="off" data-i18n-placeholder="folderNamePh" placeholder="如：图片 / 备份">
+    </div>
+    <div class="modal-actions">
+      <button class="btn" id="mkdirCancel" type="button" data-i18n="cancel">取消</button>
+      <button class="btn btn-accent" id="mkdirOk" type="button" data-i18n="save">创建</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 回收站 ===== -->
+<div class="modal-mask" id="trashMask" aria-hidden="true" inert>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="trashMaskTitle">
+    <h3 class="modal-title" id="trashMaskTitle" data-i18n="trashTitle">回收站</h3>
+    <div class="trash-list" id="trashList"></div>
+    <div class="modal-actions">
+      <button class="btn btn-stop" id="trashEmpty" type="button" data-i18n="trashEmpty">清空回收站</button>
+      <button class="btn" id="trashClose" type="button" data-i18n="close">关闭</button>
     </div>
   </div>
 </div>

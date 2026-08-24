@@ -676,6 +676,8 @@ body.dragging-on { cursor: grabbing; user-select: none; -webkit-user-select: non
   opacity: 0; pointer-events: none; transition: opacity 0.15s ease;
 }
 .modal-mask.open { opacity: 1; pointer-events: auto; }
+/* 最高优先级二次确认弹窗：浮于所有普通弹层（如回收站）之上 */
+.modal-mask#confirmMask { z-index: 360; }
 
 .modal {
   width: 540px; max-width: 100%;
@@ -925,7 +927,11 @@ body.dragging-on { cursor: grabbing; user-select: none; -webkit-user-select: non
   -webkit-backdrop-filter: blur(3px);
   opacity: 0; pointer-events: none; transition: opacity 0.15s ease;
 }
-.drawer-mask.open { opacity: 1; pointer-events: auto; }
+/* 遮罩保留视觉聚焦但点击穿透：抽屉开着时可直接点列表切换预览 */
+.drawer-mask.open { opacity: 1; pointer-events: none; }
+.file-tr.is-previewing {
+  background: rgba(59, 130, 246, 0.12) !important;
+}
 .drawer {
   position: fixed; top: 0; right: 0; bottom: 0; z-index: 295;
   width: 580px; max-width: 94vw;

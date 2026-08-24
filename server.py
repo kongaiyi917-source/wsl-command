@@ -13,6 +13,7 @@ import json
 import os
 import pwd
 import re
+import shutil
 import signal
 import socket
 import subprocess
@@ -49,6 +50,8 @@ SCAN_WORKERS = 8             # 并行扫描线程数
 PROCESS_CACHE_TTL = 2.0     # 进程快照缓存（秒）
 GIT_INTERVAL = 300          # git 提交信息刷新间隔（秒）
 MAX_FILE_PREVIEW = 512 * 1024  # 文本预览最大字节数
+MAX_UPLOAD_SIZE = 2 * 1024 * 1024 * 1024   # 上传单文件上限 2GB
+UPLOAD_CHUNK = 1024 * 1024                 # 上传/下载流式分块 1MB
 
 WSL_DISTRO = os.environ.get("WSL_DISTRO_NAME", "Ubuntu")
 
@@ -106,6 +109,7 @@ DEFAULT_CONFIG = {
     "theme": "auto",   # auto | light | dark
     "process_notes": {},    # {proc_key: {"note": str}} 进程手动备注（按 项目路径+命令行 持久化）
     "process_history": {},  # {project_path: [{key,comm,cmd,cwd,last_seen}]} 项目进程历史（服务端维护）
+    "locked_paths": [],     # [abs_path, ...] 用户手动软锁的文件/目录（锁目录 = 锁整个子树）
 }
 
 _config_lock = threading.Lock()
@@ -150,7 +154,7 @@ def load_config():
         raw = json.loads(CONFIG_PATH.read_text(encoding="utf-8"))
         cfg = dict(DEFAULT_CONFIG)
         for k in ("labels", "pins", "ignores", "theme",
-                  "process_notes", "process_history"):
+                  "process_notes", "process_history", "locked_paths"):
             if k in raw and isinstance(raw[k], type(cfg[k])):
                 cfg[k] = raw[k]
         _config = cfg
@@ -802,6 +806,7 @@ def _entry_info(root: Path, name: str):
         "is_dir": p.is_dir() and not p.is_symlink(),
         "size": st.st_size if p.is_file() else 0,
         "mtime": st.st_mtime,
+        "lock": lock_type_of(str(p)),   # hard | soft | none
     }
 
 
@@ -835,6 +840,25 @@ def list_dir(path_str: str, show_hidden=False):
     return {"path": str(p), "name": p.name, "parent": parent, "dirs": dirs, "files": files}
 
 
+IMAGE_MAGIC = (
+    (b"\x89PNG\r\n\x1a\n", "image/png"),
+    (b"\xff\xd8\xff", "image/jpeg"),
+    (b"GIF87a", "image/gif"),
+    (b"GIF89a", "image/gif"),
+    (b"BM", "image/bmp"),
+)
+
+
+def sniff_image(head: bytes) -> str:
+    """按魔数识别图片类型；返回 mime 或空串。"""
+    for magic, mime in IMAGE_MAGIC:
+        if head.startswith(magic):
+            return mime
+    if head.startswith(b"RIFF") and len(head) >= 12 and head[8:12] == b"WEBP":
+        return "image/webp"
+    return ""
+
+
 def read_file_preview(path_str: str):
     p = Path(path_str).resolve()
     if not p.is_file():
@@ -856,6 +880,10 @@ def read_file_preview(path_str: str):
             data = f.read(size)
     except OSError:
         return None
+    # 图片：按魔数识别，返回 mime 供前端渲染
+    mime = sniff_image(head)
+    if mime:
+        return {"image": True, "mime": mime, "size": st.st_size, "path": str(p)}
     binary = b"\x00" in head
     if binary:
         return {"binary": True, "size": st.st_size}
@@ -863,8 +891,227 @@ def read_file_preview(path_str: str):
         text = data.decode("utf-8")
     except UnicodeDecodeError:
         return {"binary": True, "size": st.st_size}
+    # SVG：文本格式但可作图片渲染
+    stripped = text.lstrip()[:256].lower()
+    if stripped.startswith("<svg") or "<svg" in stripped:
+        return {"image": True, "mime": "image/svg+xml", "size": st.st_size, "path": str(p)}
     return {"binary": False, "content": text, "truncated": truncated, "size": st.st_size,
             "path": str(p)}
+
+
+# ---------------------------------------------------------------- 文件管理：三态锁 / 回收站 / 上传下载
+
+# 硬锁清单：影响 WSL/指挥中心运转的关键项（无解锁按钮，不可删除/覆盖）
+HARD_LOCKED_HOME_ENTRIES = {
+    ".bashrc", ".bash_profile", ".profile", ".bash_logout", ".ssh",
+}
+
+TRASH_DIR = CONFIG_DIR / "trash"
+TRASH_FILES_DIR = TRASH_DIR / "files"
+TRASH_INDEX_PATH = TRASH_DIR / "index.json"
+
+
+def is_hard_locked(p: Path) -> bool:
+    """硬锁判定：家目录本身 / 家目录外 / 登录环境与密钥 / 指挥中心自身与配置。"""
+    s = str(p)
+    if s == str(HOME):
+        return True                    # 家目录本身（删了就什么都没了）
+    if not s.startswith(str(HOME) + "/"):
+        return True                    # 家目录外（含系统目录）
+    try:
+        rel = p.relative_to(HOME)
+    except ValueError:
+        return True
+    if rel.parts and rel.parts[0] in HARD_LOCKED_HOME_ENTRIES:
+        return True                    # ~/.bashrc ~/.profile ~/.ssh 等
+    bs = str(BASE_DIR)
+    if s == bs or s.startswith(bs + "/"):
+        return True                    # wsl-command 自身
+    cs = str(CONFIG_DIR)
+    if s == cs or s.startswith(cs + "/"):
+        return True                    # 指挥中心配置与回收站（影响运行）
+    return False
+
+
+def is_soft_locked(path_str: str) -> bool:
+    """软锁：用户手动锁定的路径或其父目录被锁（锁目录 = 锁整个子树）。"""
+    locked = _config.get("locked_paths", [])
+    if not locked:
+        return False
+    s = str(path_str)
+    for lp in locked:
+        if s == lp or s.startswith(lp.rstrip("/") + "/"):
+            return True
+    return False
+
+
+def lock_type_of(path_str: str) -> str:
+    """'hard' | 'soft' | 'none'"""
+    try:
+        p = Path(path_str).resolve()
+    except OSError:
+        return "none"
+    if is_hard_locked(p):
+        return "hard"
+    if is_soft_locked(str(p)):
+        return "soft"
+    return "none"
+
+
+def sanitize_filename(name: str) -> str:
+    """文件名净化：强制 basename、剥路径分隔符与空字符。"""
+    n = os.path.basename(str(name).replace("\\", "/")).strip()
+    n = n.replace("/", "_").replace("\x00", "")
+    if n in ("", ".", ".."):
+        return ""
+    return n[:200]
+
+
+def _stat_tree(p: Path):
+    """统计目录：返回 (文件数, 字节数)。"""
+    files, total = 0, 0
+    try:
+        for root, dirs, fs in os.walk(p):
+            dirs[:] = [d for d in dirs if not (Path(root) / d).is_symlink()]
+            for f in fs:
+                try:
+                    total += (Path(root) / f).stat().st_size
+                    files += 1
+                except OSError:
+                    pass
+    except OSError:
+        pass
+    return files, total
+
+
+def _trash_index() -> dict:
+    try:
+        return json.loads(TRASH_INDEX_PATH.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+
+
+def _trash_index_save(idx: dict):
+    try:
+        TRASH_DIR.mkdir(parents=True, exist_ok=True)
+        _atomic_write(TRASH_INDEX_PATH, json.dumps(idx, ensure_ascii=False, indent=2))
+    except OSError as e:
+        log("回收站索引保存失败: %s" % e)
+
+
+def trash_list():
+    """回收站条目列表（新删除在前）。"""
+    idx = _trash_index()
+    items = []
+    for name, e in idx.items():
+        exists = (TRASH_FILES_DIR / name).exists()
+        items.append({**e, "trash_name": name, "exists": exists})
+    items.sort(key=lambda x: x.get("deleted_at", 0), reverse=True)
+    return items
+
+
+def trash_move(p: Path):
+    """把文件/目录移入回收站，返回 (ok, 索引条目或错误)。"""
+    try:
+        TRASH_FILES_DIR.mkdir(parents=True, exist_ok=True)
+    except OSError as e:
+        return False, {"error": "回收站不可用: %s" % e}
+    stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    dest = TRASH_FILES_DIR / (stamp + "_" + p.name)
+    i = 1
+    while dest.exists():
+        dest = TRASH_FILES_DIR / ("%s_%d_%s" % (stamp, i, p.name))
+        i += 1
+    is_dir = p.is_dir() and not p.is_symlink()
+    files, size = (0, p.stat().st_size) if not is_dir else _stat_tree(p)
+    try:
+        shutil.move(str(p), str(dest))
+    except OSError as e:
+        return False, {"error": "移入回收站失败: %s" % e}
+    entry = {"trash_name": dest.name, "orig_path": str(p), "is_dir": is_dir,
+             "deleted_at": time.time(), "files": files, "size": size}
+    idx = _trash_index()
+    idx[dest.name] = entry
+    _trash_index_save(idx)
+    log("移入回收站 %s -> %s" % (p, dest.name))
+    return True, entry
+
+
+def trash_restore(trash_name: str):
+    """从回收站还原。"""
+    if not re.fullmatch(r"[0-9]{8}_[0-9]{6}(?:_\d+)?_.+", trash_name or ""):
+        return False, {"error": "非法回收站条目名"}
+    idx = _trash_index()
+    entry = idx.get(trash_name)
+    src = TRASH_FILES_DIR / trash_name
+    if not entry or not src.exists():
+        return False, {"error": "条目不存在"}
+    dest = Path(entry.get("orig_path", ""))
+    if not str(dest).startswith(str(HOME) + "/") and str(dest) != str(HOME):
+        dest = HOME / trash_name.split("_", 2)[-1]     # 原路径已越界则退回家目录
+    if not dest.parent.exists():
+        dest = HOME / trash_name.split("_", 2)[-1]
+    base = dest
+    i = 1
+    while dest.exists():
+        dest = Path(str(base) + ".restored" + (str(i) if i > 1 else ""))
+        i += 1
+    try:
+        shutil.move(str(src), str(dest))
+    except OSError as e:
+        return False, {"error": "还原失败: %s" % e}
+    idx.pop(trash_name, None)
+    _trash_index_save(idx)
+    log("回收站还原 %s -> %s" % (trash_name, dest))
+    return True, {"restored_to": str(dest)}
+
+
+def trash_empty():
+    """清空回收站（彻底释放磁盘）。"""
+    try:
+        shutil.rmtree(TRASH_FILES_DIR, ignore_errors=True)
+        TRASH_FILES_DIR.mkdir(parents=True, exist_ok=True)
+    except OSError as e:
+        return False, {"error": "清空失败: %s" % e}
+    _trash_index_save({})
+    log("回收站已清空")
+    return True, {}
+
+
+def delete_paths(paths, permanent=False):
+    """删除一批路径；permanent=False 进回收站，True 彻底删。返回 (ok, info)。"""
+    ok_all, removed, trashed, errors = True, 0, 0, []
+    for raw in paths:
+        p = Path(raw).resolve()
+        if not p.exists():
+            continue
+        if is_hard_locked(p):
+            ok_all = False
+            errors.append("%s: 系统保护" % p.name)
+            continue
+        if is_soft_locked(str(p)):
+            ok_all = False
+            errors.append("%s: 已锁定" % p.name)
+            continue
+        if permanent:
+            try:
+                if p.is_dir() and not p.is_symlink():
+                    shutil.rmtree(p)
+                else:
+                    p.unlink()
+                removed += 1
+                log("彻底删除 %s" % p)
+            except OSError as e:
+                ok_all = False
+                errors.append("%s: %s" % (p.name, e))
+        else:
+            ok, info = trash_move(p)
+            if ok:
+                trashed += 1
+            else:
+                ok_all = False
+                errors.append((info or {}).get("error", "失败"))
+    return ok_all, {"removed": removed, "trashed": trashed, "errors": errors}
 
 
 # ---------------------------------------------------------------- 受控进程（启动/暂停）
@@ -1726,7 +1973,7 @@ class Handler(BaseHTTPRequestHandler):
         """解析并校验绝对路径，防穿越。"""
         try:
             p = Path(urllib.parse.unquote(raw)).resolve()
-        except OSError:
+        except (OSError, ValueError):
             return None
         if not str(p).startswith(str(HOME) + "/") and str(p) != str(HOME):
             return None
@@ -1825,6 +2072,10 @@ class Handler(BaseHTTPRequestHandler):
                 self._json({"error": "invalid path"}, 400)
                 return
             self._json(project_detail_payload(str(p)))
+        elif name == "download":
+            self._file_download(qs.get("path", [""])[0])
+        elif name == "trash":
+            self._json({"items": trash_list()})
         elif name == "logs":
             self._json({"logs": tail_log(80)})
         elif name == "projects/logs":
@@ -1841,6 +2092,31 @@ class Handler(BaseHTTPRequestHandler):
                 self._json({"logs": [], "path": str(logf)})
         else:
             self._json({"error": "unknown api"}, 404)
+
+    def _file_download(self, raw: str):
+        """GET /api/download?path=…：64KB 分块流式发送，禁目录。"""
+        p = self._safe_path(raw)
+        if p is None or not p.is_file():
+            self._json({"error": "invalid file"}, 404)
+            return
+        try:
+            size = p.stat().st_size
+            self.send_response(200)
+            self.send_header("Content-Type", "application/octet-stream")
+            self.send_header("Content-Length", str(size))
+            enc = urllib.parse.quote(p.name)
+            self.send_header("Content-Disposition",
+                             "attachment; filename*=UTF-8''%s" % enc)
+            self.end_headers()
+            with open(p, "rb") as f:
+                while True:
+                    chunk = f.read(UPLOAD_CHUNK)
+                    if not chunk:
+                        break
+                    self.wfile.write(chunk)
+            log("下载 %s (%s)" % (p, fmt_bytes(size)))
+        except (OSError, ConnectionError, BrokenPipeError) as e:
+            log("下载失败 %s: %s" % (p, e))
 
     # ---- POST ----
     def do_POST(self):
@@ -1879,6 +2155,12 @@ class Handler(BaseHTTPRequestHandler):
             self._docker_control(parsed.path.endswith("/start"))
         elif parsed.path in ("/api/process/start", "/api/process/stop"):
             self._process_control(parsed.path.rsplit("/", 1)[-1])
+        elif parsed.path == "/api/upload":
+            self._file_upload(parsed.query)
+        elif parsed.path in ("/api/file/stat", "/api/file/delete", "/api/file/lock",
+                             "/api/file/mkdir",
+                             "/api/trash/restore", "/api/trash/empty"):
+            self._file_control(parsed.path.rsplit("/", 1)[-1])
         else:
             self._send(404, b"not found", "text/plain; charset=utf-8")
 
@@ -1956,6 +2238,154 @@ class Handler(BaseHTTPRequestHandler):
                 return
             ok, info = stop_process(path, pid)
         self._json({"ok": ok, **info})
+
+    def _file_upload(self, query: str):
+        """POST /api/upload?path=<目录>&name=<文件名>[&overwrite=1]
+        body = 原始文件字节流。1MB 分块流式写 .part → 校验 → 原子改名。"""
+        qs = urllib.parse.parse_qs(query)
+        raw_dir = qs.get("path", [""])[0]
+        name = qs.get("name", [""])[0]
+        overwrite = qs.get("overwrite", ["0"])[0] in ("1", "true")
+        d = self._safe_path(raw_dir)
+        safe = sanitize_filename(name)
+        if d is None or not d.is_dir() or not safe:
+            self._json({"error": "invalid target"}, 400)
+            return
+        lt_dir = lock_type_of(str(d))
+        if lt_dir != "none":
+            self._json({"error": "目标目录被锁定"}, 403)
+            return
+        dest = d / safe
+        lt_dest = lock_type_of(str(dest))
+        if lt_dest != "none":
+            self._json({"error": "目标文件被锁定"}, 403)
+            return
+        if dest.exists() and not overwrite:
+            self._json({"error": "exists"}, 409)
+            return
+        try:
+            clen = int(self.headers.get("Content-Length") or -1)
+        except ValueError:
+            clen = -1
+        if clen < 0:
+            self._json({"error": "missing content-length"}, 411)
+            return
+        if clen > MAX_UPLOAD_SIZE:
+            self._json({"error": "文件超过 2GB 上限"}, 413)
+            return
+        # curl 等客户端发 Expect: 100-continue 时先回 100，避免无谓等待
+        if self.headers.get("Expect", "").lower() == "100-continue":
+            try:
+                self.wfile.write(b"HTTP/1.1 100 Continue\r\n\r\n")
+                self.wfile.flush()
+            except OSError:
+                return
+        part = dest.with_name(dest.name + "." + uuid.uuid4().hex[:6] + ".part")
+        try:
+            with open(part, "wb") as f:
+                remaining = clen
+                while remaining > 0:
+                    chunk = self.rfile.read(min(UPLOAD_CHUNK, remaining))
+                    if not chunk:
+                        break
+                    f.write(chunk)
+                    remaining -= len(chunk)
+            if remaining != 0:
+                part.unlink(missing_ok=True)
+                self._json({"error": "传输中断，请重试"}, 400)
+                return
+            os.replace(part, dest)      # 完整无误才转正
+            log("上传 %s (%s)" % (dest, fmt_bytes(clen)))
+            self._json({"ok": True, "path": str(dest), "size": clen})
+        except OSError as e:
+            part.unlink(missing_ok=True)
+            self._json({"error": "写入失败: %s" % e}, 500)
+
+    def _file_control(self, action):
+        """文件管理动作：stat 统计 / delete 删除 / lock 软锁 / trash-restore / trash-empty。"""
+        try:
+            n = int(self.headers.get("Content-Length", "0"))
+            data = json.loads(self.rfile.read(n).decode("utf-8")) if n else {}
+        except (ValueError, UnicodeDecodeError):
+            self._json({"error": "bad json"}, 400)
+            return
+        if action == "stat":
+            entries = []
+            for raw in (data.get("paths") or []):
+                p = self._safe_path(raw)
+                if p is None or not p.exists():
+                    continue
+                try:
+                    is_dir = p.is_dir() and not p.is_symlink()
+                    files, size = _stat_tree(p) if is_dir else (0, p.stat().st_size)
+                except OSError:
+                    continue
+                entries.append({"path": str(p), "name": p.name, "is_dir": is_dir,
+                                "files": files, "size": size,
+                                "lock": lock_type_of(str(p))})
+            self._json({"entries": entries})
+            return
+        if action == "delete":
+            safe_paths = []
+            for raw in (data.get("paths") or []):
+                p = self._safe_path(raw)
+                if p is not None:
+                    safe_paths.append(str(p))
+            if not safe_paths:
+                self._json({"error": "no valid paths"}, 400)
+                return
+            ok, info = delete_paths(safe_paths, bool(data.get("permanent")))
+            self._json({"ok": ok, **info})
+            return
+        if action == "lock":
+            p = self._safe_path(data.get("path", ""))
+            if p is None:
+                self._json({"error": "invalid path"}, 400)
+                return
+            s = str(p)
+            if is_hard_locked(p):
+                self._json({"error": "系统保护路径不可锁定"}, 403)
+                return
+            locked = set(_config.get("locked_paths", []))
+            if data.get("locked"):
+                locked.add(s)
+            else:
+                locked.discard(s)
+            _config["locked_paths"] = sorted(locked)
+            save_config()
+            self._json({"ok": True, "lock": lock_type_of(s)})
+            return
+        if action == "mkdir":
+            parent = self._safe_path(data.get("path", ""))
+            name = sanitize_filename(data.get("name", ""))
+            if parent is None or not parent.is_dir() or not name:
+                self._json({"error": "invalid target"}, 400)
+                return
+            lt = lock_type_of(str(parent))
+            if lt != "none":
+                self._json({"error": "目录被锁定"}, 403)
+                return
+            dest = parent / name
+            if dest.exists():
+                self._json({"error": "exists"}, 409)
+                return
+            try:
+                dest.mkdir()
+            except OSError as e:
+                self._json({"error": "创建失败: %s" % e}, 500)
+                return
+            log("新建文件夹 %s" % dest)
+            self._json({"ok": True, "path": str(dest)})
+            return
+        if action == "restore":
+            ok, info = trash_restore(str(data.get("name", "")))
+            self._json({"ok": ok, **info})
+            return
+        if action == "empty":
+            ok, info = trash_empty()
+            self._json({"ok": ok, **info})
+            return
+        self._json({"error": "unknown action"}, 404)
 
     def _post_config(self):
         try:
