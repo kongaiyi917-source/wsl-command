@@ -825,8 +825,6 @@ def list_dir(path_str: str, show_hidden=False):
                     if _is_hidden(e.name):
                         if not show_hidden:
                             continue
-                    elif is_ignored_name(e.name):
-                        continue
                     info = _entry_info(p, e.name)
                     if info:
                         (dirs if info["is_dir"] else files).append(info)
