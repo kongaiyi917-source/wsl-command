@@ -18,11 +18,13 @@ import signal
 import socket
 import subprocess
 import sys
+import tempfile
 import threading
 import time
 import urllib.parse
 import uuid
 import secrets
+import zipfile
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
@@ -2092,29 +2094,89 @@ class Handler(BaseHTTPRequestHandler):
             self._json({"error": "unknown api"}, 404)
 
     def _file_download(self, raw: str):
-        """GET /api/download?path=…：64KB 分块流式发送，禁目录。"""
+        """GET /api/download?path=…：64KB 分块流式发送文件或打包下载目录(ZIP)。"""
         p = self._safe_path(raw)
-        if p is None or not p.is_file():
-            self._json({"error": "invalid file"}, 404)
+        if p is None or not (p.is_file() or p.is_dir()):
+            self._json({"error": "invalid file or directory"}, 404)
             return
+
+        if p.is_file():
+            try:
+                size = p.stat().st_size
+                self.send_response(200)
+                self.send_header("Content-Type", "application/octet-stream")
+                self.send_header("Content-Length", str(size))
+                enc = urllib.parse.quote(p.name)
+                self.send_header("Content-Disposition",
+                                 "attachment; filename*=UTF-8''%s" % enc)
+                self.end_headers()
+                with open(p, "rb") as f:
+                    while True:
+                        chunk = f.read(UPLOAD_CHUNK)
+                        if not chunk:
+                            break
+                        self.wfile.write(chunk)
+                log("下载文件 %s (%s)" % (p, fmt_bytes(size)))
+            except (OSError, ConnectionError, BrokenPipeError) as e:
+                log("下载失败 %s: %s" % (p, e))
+            return
+
+        # 目录打包下载 (ZIP)
+        tmp_zip = None
         try:
-            size = p.stat().st_size
+            name = p.name or "home"
+            tmp_fd, tmp_path = tempfile.mkstemp(prefix="wsl_zip_", suffix=".zip")
+            os.close(tmp_fd)
+            tmp_zip = Path(tmp_path)
+
+            with zipfile.ZipFile(tmp_zip, "w", compression=zipfile.ZIP_DEFLATED) as zf:
+                base_dir = p
+                for root, dirs, files in os.walk(base_dir):
+                    root_p = Path(root)
+                    for d in dirs:
+                        dir_p = root_p / d
+                        if dir_p.is_symlink():
+                            continue
+                        try:
+                            rel = dir_p.relative_to(base_dir)
+                            zinfo = zipfile.ZipInfo(str(rel).replace("\\", "/") + "/")
+                            zf.writestr(zinfo, "")
+                        except (OSError, ValueError):
+                            continue
+                    for f in files:
+                        file_p = root_p / f
+                        if file_p.is_symlink():
+                            continue
+                        try:
+                            rel = file_p.relative_to(base_dir)
+                            zf.write(file_p, str(rel).replace("\\", "/"))
+                        except (OSError, ValueError):
+                            continue
+
+            size = tmp_zip.stat().st_size
             self.send_response(200)
-            self.send_header("Content-Type", "application/octet-stream")
+            self.send_header("Content-Type", "application/zip")
             self.send_header("Content-Length", str(size))
-            enc = urllib.parse.quote(p.name)
+            enc = urllib.parse.quote(f"{name}.zip")
             self.send_header("Content-Disposition",
                              "attachment; filename*=UTF-8''%s" % enc)
             self.end_headers()
-            with open(p, "rb") as f:
+
+            with open(tmp_zip, "rb") as f:
                 while True:
                     chunk = f.read(UPLOAD_CHUNK)
                     if not chunk:
                         break
                     self.wfile.write(chunk)
-            log("下载 %s (%s)" % (p, fmt_bytes(size)))
+            log("下载文件夹打包 %s -> %s.zip (%s)" % (p, name, fmt_bytes(size)))
         except (OSError, ConnectionError, BrokenPipeError) as e:
-            log("下载失败 %s: %s" % (p, e))
+            log("下载文件夹失败 %s: %s" % (p, e))
+        finally:
+            if tmp_zip and tmp_zip.exists():
+                try:
+                    tmp_zip.unlink()
+                except OSError:
+                    pass
 
     # ---- POST ----
     def do_POST(self):

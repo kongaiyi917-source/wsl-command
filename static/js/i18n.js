@@ -149,6 +149,7 @@ const DICT = {
     // 文件管理（上传/下载/删除/锁定/回收站）
     'upload': '上传',
     'download': '下载',
+    'downloadZip': '打包下载 (ZIP)',
     'delete': '删除',
     'lockTip': '点击锁定，防止误删',
     'unlockTip': '你锁定的，点击解锁',
@@ -354,6 +355,7 @@ const DICT = {
     // File Management (upload/download/delete/lock/trash)
     'upload': 'Upload',
     'download': 'Download',
+    'downloadZip': 'Download ZIP',
     'delete': 'Delete',
     'lockTip': 'Click to lock against accidental deletion',
     'unlockTip': 'Locked by you · click to unlock',

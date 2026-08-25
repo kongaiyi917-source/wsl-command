@@ -287,16 +287,14 @@ async function loadDir(path, initial) {
     mtime.textContent = fmtDateTime(item.mtime);
     const actBox = el('span', 'c-act');
 
-    /* 下载（仅文件） */
-    if (!isDir) {
-      const bDl = el('button', 'ibtn');
-      bDl.type = 'button';
-      bDl.title = t('download');
-      bDl.setAttribute('aria-label', t('download'));
-      bDl.appendChild(icon('download', 14));
-      bDl.addEventListener('click', e => { e.stopPropagation(); downloadFile(item); });
-      actBox.appendChild(bDl);
-    }
+    /* 下载（文件直接下载，文件夹打包为 ZIP 下载） */
+    const bDl = el('button', 'ibtn');
+    bDl.type = 'button';
+    bDl.title = isDir ? t('downloadZip') : t('download');
+    bDl.setAttribute('aria-label', bDl.title);
+    bDl.appendChild(icon('download', 14));
+    bDl.addEventListener('click', e => { e.stopPropagation(); downloadItem(item); });
+    actBox.appendChild(bDl);
 
     /* 三态锁：hard 红锁无操作 / soft 蓝锁可解锁 / none 灰锁可锁定 */
     const bLock = el('button', 'ibtn b-lock');
@@ -361,10 +359,11 @@ function lockSvg(state) {
 
 /* ---------------- 文件操作：下载 / 删除 / 锁定 / 上传 / 回收站 ---------------- */
 
-function downloadFile(item) {
+function downloadItem(item) {
+  const isDir = item.is_dir === true || item.type === 'dir';
   const a = document.createElement('a');
   a.href = '/api/download?path=' + encodeURIComponent(item.path);
-  a.download = item.name;
+  a.download = isDir ? (item.name + '.zip') : item.name;
   document.body.appendChild(a);
   a.click();
   a.remove();
